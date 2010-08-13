@@ -22,11 +22,11 @@ byte whitePins[] = {10, 11};         // pwm pins for whites
 byte blueChannels =           2;    // how many PWMs for blues (count from above)
 byte whiteChannels  =         2;    // how many PWMs for whites (count from above)
 
-int blueStartMins =        640;  // minute to start blues. Change this to the number of minutes past
+int blueStartMins =        620;  // minute to start blues. Change this to the number of minutes past
                                      //    midnight you want the blues to start.
                                      
 int whiteStartMins =       640;  // minute to start whites. Same as above.
-int bluePhotoPeriod =      766;  // photoperiod in minutes, blues. Change this to alter the total
+int bluePhotoPeriod =      760;  // photoperiod in minutes, blues. Change this to alter the total
                                     // photoperiod for blues.
                                      
 int whitePhotoPeriod =     720;  // photoperiod in minutes, whites. Same as above.
@@ -117,68 +117,28 @@ struct _ir_keypress_mapping {
 }
 
 ir_keypress_mapping[MAX_FUNCTS+1] = {
-
-  { 
-    0x00, IFC_DIAG_IR_RX,    "Debug IR (rx)"   }
-  ,
-  { 
-    0x00, IFC_MOONLIGHT_ONOFF, "Moonlight"   }
-  ,
-  { 
-    0x00, IFC_MENU,          "Menu"   }
-  ,
-  { 
-    0x00, IFC_UP,            "Up Arrow"   }
-  ,
-  { 
-    0x00, IFC_DOWN,          "Down Arrow"   }
-  ,
-  { 
-    0x00, IFC_LEFT,          "Left Arrow"   }
-  ,
-  { 
-    0x00, IFC_RIGHT,         "Right Arrow"   }
-  ,
-  { 
-    0x00, IFC_OK,            "Confirm/Select"   }
-  ,
-  { 
-    0x00, IFC_CANCEL,        "Back/Cancel"   }
-  
-
+  { 0x00, IFC_DIAG_IR_RX,    "Debug IR (rx)"     }
+  ,{ 0x00, IFC_MOONLIGHT_ONOFF, "Moonlight"      }
+  ,{ 0x00, IFC_MENU,            "Menu"           }
+  ,{ 0x00, IFC_UP,              "Up Arrow"       }
+  ,{ 0x00, IFC_DOWN,            "Down Arrow"     }
+  ,{ 0x00, IFC_LEFT,            "Left Arrow"     }
+  ,{ 0x00, IFC_RIGHT,           "Right Arrow"    }
+  ,{ 0x00, IFC_OK,              "Confirm/Select" }
+  ,{ 0x00, IFC_CANCEL,          "Back/Cancel"    }
 
 
 #ifdef NUMBER_KEYS
-  ,
-  { 
-    0x00, IFC_KEY_1, "Num 1"   }
-  ,
-  { 
-    0x00, IFC_KEY_2, "Num 2"   }
-  ,
-  { 
-    0x00, IFC_KEY_3, "Num 3"   }
-  ,
-  { 
-    0x00, IFC_KEY_4, "Num 4"   }
-  ,
-  { 
-    0x00, IFC_KEY_5, "Num 5"   }
-  ,
-  { 
-    0x00, IFC_KEY_6, "Num 6"   }
-  ,
-  { 
-    0x00, IFC_KEY_7, "Num 7"   }
-  ,
-  { 
-    0x00, IFC_KEY_8, "Num 8"   }
-  ,
-  { 
-    0x00, IFC_KEY_9, "Num 9"   }
-  ,
-  { 
-    0x00, IFC_KEY_0, "Num 0"   }
+  ,{ 0x00, IFC_KEY_1,           "Num 1"          }
+  ,{ 0x00, IFC_KEY_2,           "Num 2"          }
+  ,{ 0x00, IFC_KEY_3,           "Num 3"          }
+  ,{ 0x00, IFC_KEY_4,           "Num 4"          }
+  ,{ 0x00, IFC_KEY_5,           "Num 5"          }
+  ,{ 0x00, IFC_KEY_6,           "Num 6"          }
+  ,{ 0x00, IFC_KEY_7,           "Num 7"          }
+  ,{ 0x00, IFC_KEY_8,           "Num 8"          }
+  ,{ 0x00, IFC_KEY_9,           "Num 9"          }
+  ,{ 0x00, IFC_KEY_0,           "Num 0"          }
 #endif
 
   ,
@@ -316,15 +276,12 @@ byte setLed(int mins,    // current time in minutes
             )  {
   byte ledVal = 0;
   if (mins <= start || mins > start + period)  {
-    Serial.print("1 - mins: ");
     ledVal = 0;
   }
   if (mins > start && mins <= start + fade)  {
-    Serial.print("2 - mins: ");
     ledVal =  map(mins - start, 0, fade, 0, ledMax);
   }
     if (mins > start + fade && mins <= start + period - fade)  {
-    Serial.print("3 - mins: ");
       ledVal = ledMax;
   }
     if (mins > start + period - fade && mins <= start + period)  {
