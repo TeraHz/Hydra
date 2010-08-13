@@ -106,6 +106,27 @@ decode_results results;
 #define IFC_KEY_SENTINEL            9   // this must always be the last in the list
 #define MAX_FUNCTS                  IFC_KEY_SENTINEL
 
+#define EEPROM_MAGIC              0
+
+
+#define EEPROM_WHITE_LVL          1    // white LED brightness
+#define EEPROM_BLUE_LVL           2    // blue LED brightness
+
+#define EEPROM_BACKLIGHT_LEVEL    3    // current working level
+#define EEPROM_BACKLIGHT_MIN      4    // our 'dimest' setting
+#define EEPROM_BACKLIGHT_MAX      5    // our 'brightest' setting
+#define EEPROM_BLUE_MAX           6    // Cap for blue light
+#define EEPROM_WHITE_MAX          7    // Cap for white light
+#define EEPROM_WHITE_DURATION     8    // 2 bytes; how long to keep whites on
+#define EEPROM_BLUE_DURATION      10   // 2 bytes; how long to keep blues on
+#define EEPROM_MOON_LEVEL         12   // level of moon lights
+#define EEPROM_MOON_DURATION      13   // 2 bytes; Duration of moon lights
+#define EEPROM_BLUE_START         15   // 2 bytes; Starting time for blues
+#define EEPROM_WHITE_START        17   // 2 bytes; Starting time for whites
+#define EEPROM_CHANNEL_DELAY      19   // 2 bytes; Delay between channels
+#define EEPROM_FADE_DURATION      21   // 2 bytes; Suration of sunrise/sunset
+
+
 // this is a temporary holding area that we write to, key by key; and then dump all at once when the user finishes the last one
 long ir_key_bank1[MAX_FUNCTS+1];
 
@@ -115,6 +136,16 @@ struct _ir_keypress_mapping {
   byte internal_funct_code;
   char funct_name[16];
 }
+
+// menu struct:
+struct _menu_mapping {
+  byte pos;
+  char description[20];
+  char tooltip1[20];
+  char tooltip2[20];
+  byte eepromLoc;
+}
+
 
 ir_keypress_mapping[MAX_FUNCTS+1] = {
   { 0x00, IFC_DIAG_IR_RX,    "Debug IR (rx)"     }
@@ -140,10 +171,27 @@ ir_keypress_mapping[MAX_FUNCTS+1] = {
   ,{ 0x00, IFC_KEY_9,           "Num 9"          }
   ,{ 0x00, IFC_KEY_0,           "Num 0"          }
 #endif
+  ,{ 0x00, IFC_KEY_SENTINEL,    "NULL"           }
+};
 
-  ,
-  { 
-    0x00, IFC_KEY_SENTINEL, "NULL"    }
+
+// Menu
+menu_mapping[MENU_OPTIONS] = {
+   { 0, "Backlight min"      , "Minimum level of"   , "the LCD brightness", EEPROM_BACKLIGHT_MIN   }
+  ,{ 1, "Backlight max"      , "Maximum level of"   , "the LCD brightness", EEPROM_BACKLIGHT_MAX   }
+  ,{ 2, "Clock setup"        , "Set time"           , ""                  , 0                      }
+  ,{ 3, "IR Diagnose"        , "Check if IR is"     , "working"           , 0                      }
+  ,{ 4, "Remote Learning"    , "Map remote control" , "keys to functions" , 0                      }
+  ,{ 5, "White LED limit"    , "Maximum level of"   , "white LEDs"        , EEPROM_WHITE_MAX       }
+  ,{ 6, "Blue LED limit"     , "Maximum level of"   , "blue LEDs"         , EEPROM_BLUE_MAX        }
+  ,{ 7, "Moonlight level"    , "The level of Blue"  , "during moonlight"  , EEPROM_MOON_LEVEL      }
+  ,{ 8, "White LED start"    , "When to turn on"    , "white LEDs"        , EEPROM_WHITE_START     }
+  ,{ 9, "Blue LED start"     , "When to turn on"    , "blue LEDs"         , EEPROM_BLUE_START      }
+  ,{ 10, "White LED duration", "How long will"      , "whites stay on"    , EEPROM_WHITE_DURATION  }
+  ,{ 11, "Blue LED duration" , "How long will"      , "blues stay on"     , EEPROM_BLUE_DURATION   }
+  ,{ 12, "Moon duration"     , "How long to stay in", "moonlight mode"    , EEPROM_MOON_DURATION   }
+  ,{ 13, "Channel Delay"     , "The level of Blue"  , "durong moonlight"  , EEPROM_CHANNEL_DELAY   }
+  ,{ 14, "Fade Duration"     , "Duration of sunrise", "and sunset"        , EEPROM_FADE_DURATION   }
 };
 
 
@@ -296,7 +344,6 @@ byte setLed(int mins,    // current time in minutes
 
 void  signon_msg( void ) {  
   long start_time = millis();
-
 
   lcd.clear();
   lcd.lcd_fade_backlight_on();
