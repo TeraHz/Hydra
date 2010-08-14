@@ -66,6 +66,7 @@ uint8_t in_keys = 0;
 long key;
 byte ms,ls;
 decode_results results;
+byte menu_position = 0;
 
 #define MENU_OPTIONS 15
 /*
@@ -137,18 +138,8 @@ struct _ir_keypress_mapping {
   char funct_name[16];
 }
 
-// menu struct:
-struct _menu_mapping {
-  byte pos;
-  char description[20];
-  char tooltip1[20];
-  char tooltip2[20];
-  byte eepromLoc;
-}
-
-
 ir_keypress_mapping[MAX_FUNCTS+1] = {
-  { 0x00, IFC_DIAG_IR_RX,    "Debug IR (rx)"     }
+   { 0x00, IFC_DIAG_IR_RX,      "Debug IR (rx)"  }
   ,{ 0x00, IFC_MOONLIGHT_ONOFF, "Moonlight"      }
   ,{ 0x00, IFC_MENU,            "Menu"           }
   ,{ 0x00, IFC_UP,              "Up Arrow"       }
@@ -157,8 +148,6 @@ ir_keypress_mapping[MAX_FUNCTS+1] = {
   ,{ 0x00, IFC_RIGHT,           "Right Arrow"    }
   ,{ 0x00, IFC_OK,              "Confirm/Select" }
   ,{ 0x00, IFC_CANCEL,          "Back/Cancel"    }
-
-
 #ifdef NUMBER_KEYS
   ,{ 0x00, IFC_KEY_1,           "Num 1"          }
   ,{ 0x00, IFC_KEY_2,           "Num 2"          }
@@ -174,24 +163,32 @@ ir_keypress_mapping[MAX_FUNCTS+1] = {
   ,{ 0x00, IFC_KEY_SENTINEL,    "NULL"           }
 };
 
+// menu struct:
+struct _menu_mapping {
+  byte pos;
+  char description[20];
+  char tooltip1[20];
+  char tooltip2[20];
+  byte eepromLoc;
+}
 
 // Menu
 menu_mapping[MENU_OPTIONS] = {
-   { 0, "Backlight min"      , "Minimum level of"   , "the LCD brightness", EEPROM_BACKLIGHT_MIN   }
-  ,{ 1, "Backlight max"      , "Maximum level of"   , "the LCD brightness", EEPROM_BACKLIGHT_MAX   }
-  ,{ 2, "Clock setup"        , "Set time"           , ""                  , 0                      }
-  ,{ 3, "IR Diagnose"        , "Check if IR is"     , "working"           , 0                      }
-  ,{ 4, "Remote Learning"    , "Map remote control" , "keys to functions" , 0                      }
-  ,{ 5, "White LED limit"    , "Maximum level of"   , "white LEDs"        , EEPROM_WHITE_MAX       }
-  ,{ 6, "Blue LED limit"     , "Maximum level of"   , "blue LEDs"         , EEPROM_BLUE_MAX        }
-  ,{ 7, "Moonlight level"    , "The level of Blue"  , "during moonlight"  , EEPROM_MOON_LEVEL      }
-  ,{ 8, "White LED start"    , "When to turn on"    , "white LEDs"        , EEPROM_WHITE_START     }
-  ,{ 9, "Blue LED start"     , "When to turn on"    , "blue LEDs"         , EEPROM_BLUE_START      }
-  ,{ 10, "White LED duration", "How long will"      , "whites stay on"    , EEPROM_WHITE_DURATION  }
-  ,{ 11, "Blue LED duration" , "How long will"      , "blues stay on"     , EEPROM_BLUE_DURATION   }
-  ,{ 12, "Moon duration"     , "How long to stay in", "moonlight mode"    , EEPROM_MOON_DURATION   }
-  ,{ 13, "Channel Delay"     , "The level of Blue"  , "durong moonlight"  , EEPROM_CHANNEL_DELAY   }
-  ,{ 14, "Fade Duration"     , "Duration of sunrise", "and sunset"        , EEPROM_FADE_DURATION   }
+   { 0,  "Backlight min"      , "Minimum level of"   , "the LCD brightness", EEPROM_BACKLIGHT_MIN   }
+  ,{ 1,  "Backlight max"      , "Maximum level of"   , "the LCD brightness", EEPROM_BACKLIGHT_MAX   }
+  ,{ 2,  "Clock setup"        , "Set time"           , ""                  , 0                      }
+  ,{ 3,  "IR Diagnose"        , "Check if IR is"     , "working"           , 0                      }
+  ,{ 4,  "Remote Learning"    , "Map remote control" , "keys to functions" , 0                      }
+  ,{ 5,  "White LED limit"    , "Maximum level of"   , "white LEDs"        , EEPROM_WHITE_MAX       }
+  ,{ 6,  "Blue LED limit"     , "Maximum level of"   , "blue LEDs"         , EEPROM_BLUE_MAX        }
+  ,{ 7,  "Moonlight level"    , "The level of Blue"  , "during moonlight"  , EEPROM_MOON_LEVEL      }
+  ,{ 8,  "White LED start"    , "When to turn on"    , "white LEDs"        , EEPROM_WHITE_START     }
+  ,{ 9,  "Blue LED start"     , "When to turn on"    , "blue LEDs"         , EEPROM_BLUE_START      }
+  ,{ 10, "White LED duration" , "How long will"      , "whites stay on"    , EEPROM_WHITE_DURATION  }
+  ,{ 11, "Blue LED duration"  , "How long will"      , "blues stay on"     , EEPROM_BLUE_DURATION   }
+  ,{ 12, "Moon duration"      , "How long to stay in", "moonlight mode"    , EEPROM_MOON_DURATION   }
+  ,{ 13, "Channel Delay"      , "The level of Blue"  , "durong moonlight"  , EEPROM_CHANNEL_DELAY   }
+  ,{ 14, "Fade Duration"      , "Duration of sunrise", "and sunset"        , EEPROM_FADE_DURATION   }
 };
 
 
@@ -224,7 +221,7 @@ template <class T> int EEPROM_readAnything(int ee, T& value)
 
 
 void setup() {
-  Serial.begin(9600);
+    Serial.begin(9600);
     init_components();
     signon_msg();
     
@@ -235,7 +232,9 @@ void setup() {
 }
 
 void loop() {
-    
+  if (global_mode == 0) {            // main 'everyday use' mode
+      onKeyPress();
+      Serial.println("MODE 0");
     if (lcd.backlight_admin == 0) {   // administratively set? (enable auto timeout; normal mode)
       if (lcd.backlight_currently_on == 1) {
         if ( (millis() - lcd.one_second_counter_ts) >= 1000) {
@@ -248,7 +247,29 @@ void loop() {
         }
       } // lcd.backlight_currently_on == 1
     } //lcd.backlight_admin == 0
-    
+  }//global_mode == 0
+  
+  else if (global_mode == 1) {       // Main Menu
+    Serial.println("MODE 1");
+      //menu();
+  }
+  
+  else if (global_mode == 2) {       // Setting a value
+    Serial.println("MODE 2");
+       // if the menu item is not a simple byte value
+    if ( menu_mapping[menu_position].eepromLoc == 0 ){
+      if ( menu_mapping[menu_position].pos == 2 ){ //set clock
+        //set_time();
+      }else if ( menu_mapping[menu_position].pos == 3 ) {
+        //diagnose_IR();
+      }else if ( menu_mapping[menu_position].pos == 4 ) {
+        //enter_setup_mode();
+      }
+    }else{
+      //setCurrentMenuOption();   
+    }
+  }// global_mode == 2
+  
   RTC.getDate(&second, &minute, &hour, &dayOfWeek, &dayOfMonth, &month, &year);
 
   if (psecond != second){
@@ -258,6 +279,7 @@ void loop() {
     minCounter = hour * 60 + minute;
     run_sec();
   }
+
   delay(50);
   
 }
@@ -358,13 +380,21 @@ void  signon_msg( void ) {
 
 
 void init_components ( void ) {
-   Wire.begin();
-   lcd.init();
-   lcd.SetInputKeysMask(LCD_MCP_INPUT_PINS_MASK);
-   lcd.set_backlight_levels( backlight_min ,backlight_max);
-   lcd.lcd_fade_backlight_on();
-   irrecv.enableIRIn();              // Start the receiver
-   //RTC.setDate(second, minute, hour, dayOfWeek, dayOfMonth, month, year);
+  int i;
+  Wire.begin();
+  lcd.init();
+  lcd.SetInputKeysMask(LCD_MCP_INPUT_PINS_MASK);
+  lcd.set_backlight_levels( backlight_min ,backlight_max);
+  lcd.lcd_fade_backlight_on();
+  irrecv.enableIRIn();              // Start the receiver
+  //RTC.setDate(second, minute, hour, dayOfWeek, dayOfMonth, month, year);
+  
+  //read remote keys from EEPROM  
+  for (i=0; i<=MAX_FUNCTS; i++) {
+    EEPROM_readAnything(40 + i*sizeof(key), key);
+    ir_keypress_mapping[i].key_hex = key;
+  }
+  
 }
 
 byte scan_front_button( void ) {
@@ -626,4 +656,71 @@ void  hex2ascii( const byte val, byte* ms, byte* ls ) {
   //*ls = val % 10 + '0';
 }  
 
+
+/*********************************/
+/****** NORMAL MODE HANDLER ******/
+/*********************************/
+void onKeyPress( void )
+{
+
+  key = get_IR_key();
+  if (key == 0) {
+    return;   // try again to sync up on an IR start-pulse
+  }
+  lcd.restore_backlight();
+  // key = IR diagnose
+  if (key == ir_keypress_mapping[IFC_DIAG_IR_RX].key_hex) {
+  //do something
+  }
+
+  // key = MENU
+  else if (key == ir_keypress_mapping[IFC_MENU].key_hex) {
+    lcd.clear_L1();
+    lcd.cursorTo(0,0);
+    lcd.print("Unsupported");
+    delay(500);
+    lcd.clear_L1();
+  //do something
+  }
+
+  // key = UP
+  else if (key == ir_keypress_mapping[IFC_UP].key_hex) {
+  //do something
+  }
+
+  // key = DOWN
+  else if (key == ir_keypress_mapping[IFC_DOWN].key_hex) {
+  //do something
+  }
+
+  // key = LEFT
+  else if (key == ir_keypress_mapping[IFC_LEFT].key_hex) {
+  //do something
+  }
+
+  // key = RIGHT
+  else if (key == ir_keypress_mapping[IFC_RIGHT].key_hex) {
+  //do something
+  }
+
+  // key = OK
+  else if (key == ir_keypress_mapping[IFC_OK].key_hex) {
+  //do something
+  }
+  
+  // key = Cancel
+  else if (key == ir_keypress_mapping[IFC_CANCEL].key_hex) {
+  //do something
+  }
+  
+  // key = moonlight toggle
+  else if (key == ir_keypress_mapping[IFC_MOONLIGHT_ONOFF].key_hex) {
+  //do something
+  }else{
+      Serial.println("unsupported");
+  }
+  
+  delay(100);
+  irrecv.resume();
+}
 
