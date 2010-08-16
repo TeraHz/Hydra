@@ -8,41 +8,42 @@
 #include "mcp23xx.h"
 #include "IRremote.h"
 
-#define PH_READ_PIN             3    //analog pin to poll PH
-#define PWM_BACKLIGHT_PIN       6    // pwm-controlled LED backlight
-#define IR_PIN                       8	 // Sensor data-out pin, wired direct
-#define SplashScrnTime        2          //  Splash Screen display time, seconds  
+#define PH_READ_PIN           3     //analog pin to poll PH
+#define PWM_BACKLIGHT_PIN     6     // pwm-controlled LED backlight
+#define IR_PIN                8     // Sensor data-out pin, wired direct
+#define SplashScrnTime        2     //  Splash Screen display time, seconds  
 
 const char Title[]   = { "Hydra-THz" };
 const char Version[] = {  "0.01" };
 
-byte bluePins[] = {5, 9};            // pwm pins for blues
-byte whitePins[] = {10, 11};         // pwm pins for whites
+byte bluePins[]      = {5, 9};      // pwm pins for blues
+byte whitePins[]     = {10, 11};    // pwm pins for whites
 
-byte blueChannels =           2;    // how many PWMs for blues (count from above)
-byte whiteChannels  =         2;    // how many PWMs for whites (count from above)
+byte blueChannels    =        2;    // how many PWMs for blues (count from above)
+byte whiteChannels   =        2;    // how many PWMs for whites (count from above)
 
-int blueStartMins =        620;  // minute to start blues. Change this to the number of minutes past
-                                     //    midnight you want the blues to start.
+int blueStartMins    =        620;  // minute to start blues. Change this to the number of minutes past
+                                    //    midnight you want the blues to start.
                                      
-int whiteStartMins =       640;  // minute to start whites. Same as above.
-int bluePhotoPeriod =      760;  // photoperiod in minutes, blues. Change this to alter the total
+int whiteStartMins   =        640;  // minute to start whites. Same as above.
+int bluePhotoPeriod  =        760;  // photoperiod in minutes, blues. Change this to alter the total
                                     // photoperiod for blues.
                                      
-int whitePhotoPeriod =     720;  // photoperiod in minutes, whites. Same as above.
-int fadeDuration =          60;   // duration of the fade on and off for sunrise and sunset. Change
+int whitePhotoPeriod =        720;  // photoperiod in minutes, whites. Same as above.
+int fadeDuration     =        60;   // duration of the fade on and off for sunrise and sunset. Change
                                     //    this to alter how long the fade lasts.
 
-byte moonLevel =             4;   // level of blues for moonlights
-int moonDuration =          60;  // duration of moonlights
-byte blueMax =               255;  // max intensity for blues. Change if you want to limit max intensity.
-byte whiteMax =              255;  // max intensity for whites. Same as above.
-int channelDelay =            0;    // this sets the delay in minutes between strings
-                                   // of the same color for simulating directional light.
-                                   // 0 means all will ramp up at the same time. 
+byte moonLevel       =        4;    // level of blues for moonlights
+int moonDuration     =        60;   // duration of moonlights
+byte blueMax         =        255;  // max intensity for blues. Change if you want to limit max intensity.
+byte whiteMax        =        255;  // max intensity for whites. Same as above.
+int channelDelay     =        0;    // this sets the delay in minutes between strings
+                                    // of the same color for simulating directional light.
+                                    // 0 means all will ramp up at the same time. 
                                    
-byte backlight_min =          50;
-byte backlight_max =          125;
+byte backlight_min   =        50;
+byte backlight_max   =        125;
+
 
 //stop config here
 
@@ -54,17 +55,18 @@ char strTime[20];
 char tmp[20];
 float PH = 0;
 byte second = 00;
-byte minute = 15;
-byte hour = 22;
-byte dayOfWeek = 4;
-byte dayOfMonth = 11;
+byte minute = 25;
+byte hour = 18;
+byte dayOfWeek = 1;
+byte dayOfMonth = 16;
 byte month = 8;
 byte year = 10;
 byte go_to_setup_mode = 0;
 byte global_mode = 0;
+
 uint8_t in_keys = 0;
 long key;
-byte ms,ls;
+byte ms,ls, ts, tmi, th, tdw, tdm, tmo, ty;
 decode_results results;
 byte menu_position = 0;
 
@@ -113,7 +115,7 @@ byte menu_position = 0;
 #define EEPROM_WHITE_LVL          1    // white LED brightness
 #define EEPROM_BLUE_LVL           2    // blue LED brightness
 
-#define EEPROM_BACKLIGHT_LEVEL    3    // current working level
+//#define EEPROM_BACKLIGHT_LEVEL    3    // current working level
 #define EEPROM_BACKLIGHT_MIN      4    // our 'dimest' setting
 #define EEPROM_BACKLIGHT_MAX      5    // our 'brightest' setting
 #define EEPROM_BLUE_MAX           6    // Cap for blue light
@@ -167,28 +169,26 @@ ir_keypress_mapping[MAX_FUNCTS+1] = {
 struct _menu_mapping {
   byte pos;
   char description[20];
-  char tooltip1[20];
-  char tooltip2[20];
   byte eepromLoc;
 }
 
 // Menu
 menu_mapping[MENU_OPTIONS] = {
-   { 0,  "Backlight min"      , "Minimum level of"   , "the LCD brightness", EEPROM_BACKLIGHT_MIN   }
-  ,{ 1,  "Backlight max"      , "Maximum level of"   , "the LCD brightness", EEPROM_BACKLIGHT_MAX   }
-  ,{ 2,  "Clock setup"        , "Set time"           , ""                  , 0                      }
-  ,{ 3,  "IR Diagnose"        , "Check if IR is"     , "working"           , 0                      }
-  ,{ 4,  "Remote Learning"    , "Map remote control" , "keys to functions" , 0                      }
-  ,{ 5,  "White LED limit"    , "Maximum level of"   , "white LEDs"        , EEPROM_WHITE_MAX       }
-  ,{ 6,  "Blue LED limit"     , "Maximum level of"   , "blue LEDs"         , EEPROM_BLUE_MAX        }
-  ,{ 7,  "Moonlight level"    , "The level of Blue"  , "during moonlight"  , EEPROM_MOON_LEVEL      }
-  ,{ 8,  "White LED start"    , "When to turn on"    , "white LEDs"        , EEPROM_WHITE_START     }
-  ,{ 9,  "Blue LED start"     , "When to turn on"    , "blue LEDs"         , EEPROM_BLUE_START      }
-  ,{ 10, "White LED duration" , "How long will"      , "whites stay on"    , EEPROM_WHITE_DURATION  }
-  ,{ 11, "Blue LED duration"  , "How long will"      , "blues stay on"     , EEPROM_BLUE_DURATION   }
-  ,{ 12, "Moon duration"      , "How long to stay in", "moonlight mode"    , EEPROM_MOON_DURATION   }
-  ,{ 13, "Channel Delay"      , "The level of Blue"  , "durong moonlight"  , EEPROM_CHANNEL_DELAY   }
-  ,{ 14, "Fade Duration"      , "Duration of sunrise", "and sunset"        , EEPROM_FADE_DURATION   }
+   { 0,  "Backlight min"      , EEPROM_BACKLIGHT_MIN   }
+  ,{ 1,  "Backlight max"      , EEPROM_BACKLIGHT_MAX   }
+  ,{ 2,  "Clock setup"        , 0                      }
+  ,{ 3,  "IR Diagnose"        , 0                      }
+  ,{ 4,  "Remote Learning"    , 0                      }
+  ,{ 5,  "White LED limit"    , EEPROM_WHITE_MAX       }
+  ,{ 6,  "Blue LED limit"     , EEPROM_BLUE_MAX        }
+  ,{ 7,  "Moonlight level"    , EEPROM_MOON_LEVEL      }
+  ,{ 8,  "White LED start"    , EEPROM_WHITE_START     }
+  ,{ 9,  "Blue LED start"     , EEPROM_BLUE_START      }
+  ,{ 10, "White LED duration" , EEPROM_WHITE_DURATION  }
+  ,{ 11, "Blue LED duration"  , EEPROM_BLUE_DURATION   }
+  ,{ 12, "Moon duration"      , EEPROM_MOON_DURATION   }
+  ,{ 13, "Channel Delay"      , EEPROM_CHANNEL_DELAY   }
+  ,{ 14, "Fade Duration"      , EEPROM_FADE_DURATION   }
 };
 
 
@@ -232,6 +232,7 @@ void setup() {
 }
 
 void loop() {
+  
   if (global_mode == 0) {            // main 'everyday use' mode
       onKeyPress();
       Serial.println("MODE 0");
@@ -251,11 +252,11 @@ void loop() {
   
   else if (global_mode == 1) {       // Main Menu
     Serial.println("MODE 1");
-      //menu();
+      menu();
   }
   
   else if (global_mode == 2) {       // Setting a value
-    Serial.println("MODE 2");
+    //Serial.println("MODE 2");
        // if the menu item is not a simple byte value
     if ( menu_mapping[menu_position].eepromLoc == 0 ){
       if ( menu_mapping[menu_position].pos == 2 ){ //set clock
@@ -273,7 +274,7 @@ void loop() {
   RTC.getDate(&second, &minute, &hour, &dayOfWeek, &dayOfMonth, &month, &year);
 
   if (psecond != second){
-    Serial.println("tick");
+    //Serial.println("tick");
     psecond = second;
     sprintf(strTime,"%02d:%02d:%02d %02d/%02d/%02d",hour, minute, second, dayOfMonth, month, year);
     minCounter = hour * 60 + minute;
@@ -285,8 +286,10 @@ void loop() {
 }
 
 void run_sec( void ){ // runs every second
-    update_ph(2,0);
-    update_clock(3,3);
+if (global_mode == 0){
+      update_ph(2,0);
+      update_clock(3,3);
+    }
     update_leds();
 }
 
@@ -324,15 +327,19 @@ void update_leds( void ){
       ledVal = setLed(minCounter, bluePins[i], blueStartMins + channelDelay*i, bluePhotoPeriod, fadeDuration, blueMax);
       percent = (int)(ledVal/2.55);
       sprintf(ledValBuf,"PWM%02d:%02d ",bluePins[i], percent);
-      lcd.cursorTo(0, i*10);
-      lcd.print(ledValBuf);
+      if (global_mode == 0){
+        lcd.cursorTo(0, i*10);
+        lcd.print(ledValBuf);
+      }
   }
   for (i = 0; i < whiteChannels; i++){
       ledVal = setLed(minCounter, whitePins[i], whiteStartMins + channelDelay*i, whitePhotoPeriod, fadeDuration, whiteMax);
       percent = (int)(ledVal/2.55);
       sprintf(ledValBuf,"PWM%02d:%02d ",whitePins[i], percent);
-      lcd.cursorTo(1, i*10);
-      lcd.print(ledValBuf);
+      if (global_mode == 0){
+          lcd.cursorTo(1, i*10);
+          lcd.print(ledValBuf);
+      }
   }
 }
 
@@ -382,11 +389,16 @@ void  signon_msg( void ) {
 void init_components ( void ) {
   int i;
   Wire.begin();
+  //start LCD
   lcd.init();
   lcd.SetInputKeysMask(LCD_MCP_INPUT_PINS_MASK);
   lcd.set_backlight_levels( backlight_min ,backlight_max);
   lcd.lcd_fade_backlight_on();
-  irrecv.enableIRIn();              // Start the receiver
+  
+  //start IR sensor
+  irrecv.enableIRIn();
+  
+  //set the date
   //RTC.setDate(second, minute, hour, dayOfWeek, dayOfMonth, month, year);
   
   //read remote keys from EEPROM  
@@ -394,6 +406,41 @@ void init_components ( void ) {
     EEPROM_readAnything(40 + i*sizeof(key), key);
     ir_keypress_mapping[i].key_hex = key;
   }
+  
+  //check if eeprom is good and if not set defaults
+  if (EEPROM.read(EEPROM_MAGIC) != 01) {
+    // init all of EEPROM area
+
+    EEPROM_writeAnything(EEPROM_WHITE_LVL,         0);
+    EEPROM_writeAnything(EEPROM_BLUE_LVL,          0);
+    EEPROM_writeAnything(EEPROM_BACKLIGHT_MIN,     backlight_min);
+    EEPROM_writeAnything(EEPROM_BACKLIGHT_MAX,     backlight_max);
+    EEPROM_writeAnything(EEPROM_BLUE_MAX,          blueMax);
+    EEPROM_writeAnything(EEPROM_WHITE_MAX,         whiteMax);
+    EEPROM_writeAnything(EEPROM_WHITE_DURATION,    whitePhotoPeriod);
+    EEPROM_writeAnything(EEPROM_BLUE_DURATION,     bluePhotoPeriod);
+    EEPROM_writeAnything(EEPROM_MOON_LEVEL,        moonLevel);
+    EEPROM_writeAnything(EEPROM_MOON_DURATION,     moonDuration);
+    EEPROM_writeAnything(EEPROM_WHITE_START,       whiteStartMins);
+    EEPROM_writeAnything(EEPROM_BLUE_START,        blueStartMins);
+    EEPROM_writeAnything(EEPROM_CHANNEL_DELAY,     channelDelay);
+    EEPROM_writeAnything(EEPROM_FADE_DURATION,     fadeDuration);
+    EEPROM_writeAnything(EEPROM_MAGIC, 01);  // this signals that we're whole again ;)
+  }
+  
+  //read settings from EEPROM
+  EEPROM_readAnything(EEPROM_BACKLIGHT_MIN, backlight_min);
+  EEPROM_readAnything(EEPROM_BACKLIGHT_MAX, backlight_max);
+  EEPROM_readAnything(EEPROM_BLUE_MAX, blueMax);
+  EEPROM_readAnything(EEPROM_WHITE_MAX, whiteMax);
+  EEPROM_readAnything(EEPROM_WHITE_DURATION, whitePhotoPeriod);
+  EEPROM_readAnything(EEPROM_BLUE_DURATION, bluePhotoPeriod);
+  EEPROM_readAnything(EEPROM_MOON_LEVEL, moonLevel);
+  EEPROM_readAnything(EEPROM_MOON_DURATION, moonDuration);
+  EEPROM_readAnything(EEPROM_WHITE_START, whiteStartMins);
+  EEPROM_readAnything(EEPROM_BLUE_START, blueStartMins);
+  EEPROM_readAnything(EEPROM_CHANNEL_DELAY, channelDelay);
+  EEPROM_readAnything(EEPROM_FADE_DURATION, fadeDuration);
   
 }
 
@@ -536,10 +583,6 @@ long  get_IR_key( void ) {
 
   if (irrecv.decode(&results)) {
 
-#ifdef DEBUG_IR
-    Serial.println(results.value, HEX);
-#endif
-
     // fix repeat codes (make them look like truly repeated keys)
     if (results.value == 0xffffffff) {
 
@@ -615,10 +658,7 @@ void ir_key_dump( void ) {
 }
 
 void lcd_print_long_hex(long p_value) {
-  
-#ifdef DBG
-  Serial.println("LCD_print_long_hex()");
-#endif
+
   byte Byte1 = ((p_value >> 0) & 0xFF);
   byte Byte2 = ((p_value >> 8) & 0xFF);
   byte Byte3 = ((p_value >> 16) & 0xFF);
@@ -675,12 +715,8 @@ void onKeyPress( void )
 
   // key = MENU
   else if (key == ir_keypress_mapping[IFC_MENU].key_hex) {
-    lcd.clear_L1();
-    lcd.cursorTo(0,0);
-    lcd.print("Unsupported");
-    delay(500);
-    lcd.clear_L1();
-  //do something
+    global_mode = 1;
+    update_menu();
   }
 
   // key = UP
@@ -722,5 +758,59 @@ void onKeyPress( void )
   
   delay(100);
   irrecv.resume();
+}
+
+
+/***********************/
+/****** MAIN MENU ******/
+/***********************/
+void menu( void ) {
+  key = get_IR_key();
+  if (key == 0) {
+    return;
+  }
+
+  if (key == ir_keypress_mapping[IFC_OK].key_hex ) {
+    lcd.clear();
+    RTC.getDate(&ts, &tmi, &th, &tdw, &tdm, &tmo, &ty);
+    lcd.send_string(menu_mapping[menu_position].description, LCD_CURS_POS_L1_HOME);
+    lcd.send_string("Use arrows to adjust", LCD_CURS_POS_L2_HOME);
+    //EEPROM_readAnything(menu_mapping[menu_position].eepromLoc, sVal);
+    global_mode = 2;
+    delay (100);
+  }else if (key == ir_keypress_mapping[IFC_UP].key_hex){
+    if (menu_position < MENU_OPTIONS-1){
+        menu_position++;
+    }else{
+        menu_position = 0;
+    }
+    update_menu();
+    delay (100);
+  }else if (key == ir_keypress_mapping[IFC_DOWN].key_hex){ 
+    if (menu_position > 0){
+      menu_position--;
+    }else{
+      menu_position = MENU_OPTIONS-1;
+    }
+    update_menu();
+    delay (100);
+  }else if (key == ir_keypress_mapping[IFC_CANCEL].key_hex){
+    global_mode = 0;
+    lcd.clear();
+    delay (100);
+  } 
+  
+  delay(100);
+  
+  irrecv.resume(); // we just consumed one key; 'start' to receive the next value
+  
+}
+
+
+void update_menu( void ){
+  lcd.clear_L2();
+  lcd.clear_L3();
+  lcd.clear_L4();
+  lcd.send_string(menu_mapping[menu_position].description, LCD_CURS_POS_L2_HOME);
 }
 
