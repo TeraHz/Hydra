@@ -63,6 +63,7 @@ byte month = 8;
 byte year = 10;
 byte go_to_setup_mode = 0;
 byte global_mode = 0;
+byte sPos = 1; // position for setting
 
 uint8_t in_keys = 0;
 long key;
@@ -260,11 +261,11 @@ void loop() {
        // if the menu item is not a simple byte value
     if ( menu_mapping[menu_position].eepromLoc == 0 ){
       if ( menu_mapping[menu_position].pos == 2 ){ //set clock
-        //set_time();
+        set_time();
       }else if ( menu_mapping[menu_position].pos == 3 ) {
-        //diagnose_IR();
+        diagnose_IR();
       }else if ( menu_mapping[menu_position].pos == 4 ) {
-        //enter_setup_mode();
+        enter_setup_mode();
       }
     }else{
       //setCurrentMenuOption();   
@@ -812,5 +813,228 @@ void update_menu( void ){
   lcd.clear_L3();
   lcd.clear_L4();
   lcd.send_string(menu_mapping[menu_position].description, LCD_CURS_POS_L2_HOME);
+}
+
+
+void set_time( void ){
+  key = get_IR_key();
+  if (key == 0) {
+    return;
+  }
+  sprintf(strTime,"%02d:%02d:%02d %02d/%02d/%02d %d",th, tmi, ts, tdm, tmo, ty, tdw);
+  update_clock(2,0);
+  lcd.cursorTo(3,0);
+  lcd.print("HH:MM:SS DD:MM:YY DW");
+  // key = OK
+  if (key == ir_keypress_mapping[IFC_OK].key_hex ) {
+    RTC.setDate(ts, tmi, th, tdw, tdm, tmo, ty);
+    global_mode = 0;
+    lcd.clear();
+  }
+  
+  // key = Up
+  else if (key == ir_keypress_mapping[IFC_UP].key_hex){
+        
+    if (sPos == 1){
+      if (th < 23) {
+         th++;
+      } 
+      else {
+        th = 0;  // wrap around
+      }
+    }else if (sPos == 2){
+      if (tmi < 59) {
+         tmi++;
+      } 
+      else {
+        tmi = 0;  // wrap around
+      }
+    }else if (sPos == 3){
+      if (ts < 59) {
+         ts++;
+      } 
+      else {
+        ts = 0;  // wrap around
+      }
+    }else if (sPos == 4){
+      if (tdm < 31) {
+         tdm++;
+      } 
+      else {
+        tdm = 1;  // wrap around
+      }
+   }else if (sPos == 5){
+      if (tmo < 12) {
+         tmo++;
+      } 
+      else {
+        tmo = 1;  // wrap around
+      }
+   }else if (sPos == 6){
+      if (ty < 99) {
+         ty++;
+      } 
+      else {
+        ty = 0;  // wrap around
+      }
+   }else if (sPos == 7){
+      if (tdw < 7) {
+         tdw++;
+      } 
+      else {
+        tdw = 1;  // wrap around
+      }   
+   }
+    delay (100);
+    update_clock(2,0);
+  }
+  
+  
+  // key = Down
+  else if (key == ir_keypress_mapping[IFC_DOWN].key_hex){ 
+        
+    if (sPos == 1){
+      if (th > 0) {
+         th--;
+      } 
+      else {
+        th = 23;  // wrap around
+      }
+    }else if (sPos == 2){
+      if (tmi > 0) {
+         tmi--;
+      } 
+      else {
+        tmi = 59;  // wrap around
+      }
+    }else if (sPos == 3){
+      if (ts > 0) {
+         ts--;
+      } 
+      else {
+        ts = 59;  // wrap around
+      }
+    }else if (sPos == 4){
+      if (tdm > 1) {
+         tdm--;
+      } 
+      else {
+        tdm = 31;  // wrap around
+      }
+   }else if (sPos == 5){
+      if (tmo > 1) {
+         tmo--;
+      } 
+      else {
+        tmo = 12;  // wrap around
+      }
+   }else if (sPos == 6){
+      if (ty > 1) {
+         ty--;
+      } 
+      else {
+        ty = 99;  // wrap around
+      }
+   }else if (sPos == 7){
+      if (tdw > 1) {
+         tdw--;
+      } 
+      else {
+        tdw = 7;  // wrap around
+      }   
+   }
+    delay (100);
+    update_clock(2,0);
+  }
+  
+  
+  // key = Left
+  else if (key == ir_keypress_mapping[IFC_LEFT].key_hex){
+    if (sPos > 1) {
+        sPos--;
+      } 
+      else {
+        sPos = 7;  // wrap around
+      }
+    delay (100);
+  }
+  
+  
+  // key = Right
+  else if (key == ir_keypress_mapping[IFC_RIGHT].key_hex){ 
+    if (sPos < 7) {
+        sPos++;
+      } 
+      else {
+        sPos = 1;  // wrap around
+      }
+    delay (100);
+  }
+  
+  // key = Cancel
+  else if (key == ir_keypress_mapping[IFC_CANCEL].key_hex){
+    lcd.clear();
+    global_mode = 0;
+    delay (100);
+  } 
+  delay(100);
+  irrecv.resume(); // we just consumed one key; 'start' to receive the next value
+  
+}
+
+void diagnose_IR( void ){
+  
+  /*
+   * we got a valid IR start pulse! fetch the keycode, now.
+   */
+
+  key = get_IR_key();
+  if (key == 0) {
+    return;
+  }
+  lcd.clear();
+  lcd.send_string(menu_mapping[menu_position].description, LCD_CURS_POS_L1_HOME);
+  delay(50);
+
+  if (results.decode_type == UNKNOWN) {
+    //Serial.println("Could not decode IR message");
+    lcd.send_string("UNKNOWN: (no hex)", LCD_CURS_POS_L2_HOME);
+  } 
+
+  else {
+    if (results.decode_type == NEC) {
+      lcd.send_string("NEC: ", LCD_CURS_POS_L2_HOME);
+    } 
+
+    else if (results.decode_type == SONY) {
+      lcd.send_string("SONY: ", LCD_CURS_POS_L2_HOME);
+    } 
+
+    else if (results.decode_type == RC5) {
+      lcd.send_string("RC5: ", LCD_CURS_POS_L2_HOME);
+    } 
+
+    else if (results.decode_type == RC6) {
+      lcd.send_string("RC6: ", LCD_CURS_POS_L2_HOME);
+    }
+
+
+    // print the value!
+    lcd_print_long_hex(results.value);
+
+  }
+  // 'diag mode' key exits
+  if (key == ir_keypress_mapping[IFC_CANCEL].key_hex) {
+    global_mode = 0;  // we're done in this edit mode
+    /*
+     * redraw the screen in '0' (main) mode
+     */
+     lcd.clear();
+    delay (200); //Debounce switch
+  }
+
+  delay(100);
+  irrecv.resume(); // we just consumed one key; 'start' to receive the next value
+
 }
 
