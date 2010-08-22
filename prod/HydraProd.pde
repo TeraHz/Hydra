@@ -7,6 +7,7 @@
 #include "DS1307.h"
 #include "mcp23xx.h"
 #include "IRremote.h"
+#include "I2CRelay.h"
 
 #define PH_READ_PIN           3     //analog pin to poll PH
 #define PWM_BACKLIGHT_PIN     6     // pwm-controlled LED backlight
@@ -16,60 +17,60 @@
 const char Title[]   = { "Hydra-THz" };
 const char Version[] = {  "0.01" };
 
-byte bluePins[]      = {5, 9};      // pwm pins for blues
-byte whitePins[]     = {10, 11};    // pwm pins for whites
+uint8_t bluePins[]      = {5, 9};      // pwm pins for blues
+uint8_t whitePins[]     = {10, 11};    // pwm pins for whites
 
-byte blueChannels    =        2;    // how many PWMs for blues (count from above)
-byte whiteChannels   =        2;    // how many PWMs for whites (count from above)
+uint8_t blueChannels    =        2;    // how many PWMs for blues (count from above)
+uint8_t whiteChannels   =        2;    // how many PWMs for whites (count from above)
 
-int blueStartMins    =        620;  // minute to start blues. Change this to the number of minutes past
+uint16_t blueStartMins    =        620;  // minute to start blues. Change this to the number of minutes past
                                     //    midnight you want the blues to start.
                                      
-int whiteStartMins   =        640;  // minute to start whites. Same as above.
-int bluePhotoPeriod  =        760;  // photoperiod in minutes, blues. Change this to alter the total
+uint16_t whiteStartMins   =        640;  // minute to start whites. Same as above.
+uint16_t bluePhotoPeriod  =        760;  // photoperiod in minutes, blues. Change this to alter the total
                                     // photoperiod for blues.
                                      
-int whitePhotoPeriod =        720;  // photoperiod in minutes, whites. Same as above.
-int fadeDuration     =        60;   // duration of the fade on and off for sunrise and sunset. Change
+uint16_t whitePhotoPeriod =        720;  // photoperiod in minutes, whites. Same as above.
+uint16_t fadeDuration     =        60;   // duration of the fade on and off for sunrise and sunset. Change
                                     //    this to alter how long the fade lasts.
 
-byte moonLevel       =        4;    // level of blues for moonlights
-int moonDuration     =        60;   // duration of moonlights
-byte blueMax         =        255;  // max intensity for blues. Change if you want to limit max intensity.
-byte whiteMax        =        255;  // max intensity for whites. Same as above.
-int channelDelay     =        0;    // this sets the delay in minutes between strings
+uint8_t moonLevel       =        4;    // level of blues for moonlights
+uint16_t moonDuration     =        60;   // duration of moonlights
+uint8_t blueMax         =        255;  // max intensity for blues. Change if you want to limit max intensity.
+uint8_t whiteMax        =        255;  // max intensity for whites. Same as above.
+uint16_t channelDelay     =        0;    // this sets the delay in minutes between strings
                                     // of the same color for simulating directional light.
                                     // 0 means all will ramp up at the same time. 
                                    
-byte backlight_min   =        50;
-byte backlight_max   =        125;
+uint8_t backlight_min   =        50;
+uint8_t backlight_max   =        125;
 
 
 //stop config here
 
 
-byte lcd_in_use_flag = 0;
-byte psecond = 0;
-int minCounter = 0;
+uint8_t lcd_in_use_flag = 0;
+uint8_t psecond = 0;
+uint16_t minCounter = 0;
 char strTime[20];
 char tmp[20];
 float PH = 0;
-byte second = 00;
-byte minute = 25;
-byte hour = 18;
-byte dayOfWeek = 1;
-byte dayOfMonth = 16;
-byte month = 8;
-byte year = 10;
-byte go_to_setup_mode = 0;
-byte global_mode = 0;
-byte sPos = 1; // position for setting
+uint8_t second = 00;
+uint8_t minute = 25;
+uint8_t hour = 18;
+uint8_t dayOfWeek = 1;
+uint8_t dayOfMonth = 16;
+uint8_t month = 8;
+uint8_t year = 10;
+uint8_t go_to_setup_mode = 0;
+uint8_t global_mode = 0;
+uint8_t sPos = 1; // position for setting
 
 uint8_t in_keys = 0;
 long key;
-byte ms,ls, ts, tmi, th, tdw, tdm, tmo, ty;
+uint8_t ms,ls, ts, tmi, th, tdw, tdm, tmo, ty;
 decode_results results;
-byte menu_position = 0;
+uint8_t menu_position = 0;
 
 #define MENU_OPTIONS 15
 /*
@@ -137,7 +138,7 @@ long ir_key_bank1[MAX_FUNCTS+1];
 // this is used in learn-mode, to prompt the user and assign enums to internal functions
 struct _ir_keypress_mapping {
   long key_hex;
-  byte internal_funct_code;
+  uint8_t internal_funct_code;
   char funct_name[16];
 }
 
@@ -168,9 +169,9 @@ ir_keypress_mapping[MAX_FUNCTS+1] = {
 
 // menu struct:
 struct _menu_mapping {
-  byte pos;
+  uint8_t pos;
   char description[20];
-  byte eepromLoc;
+  uint8_t eepromLoc;
 }
 
 // Menu
@@ -194,25 +195,27 @@ menu_mapping[MENU_OPTIONS] = {
 
 
 MCP23XX lcd_mcp = MCP23XX(LCD_MCP_DEV_ADDR);
+MCP23XX relay_mcp = MCP23XX(RELAY_MCP_DEV_ADDR);
 
 LCDI2C4Bit lcd = LCDI2C4Bit(LCD_MCP_DEV_ADDR, LCD_PHYS_LINES, LCD_PHYS_ROWS, PWM_BACKLIGHT_PIN);
 
 IRrecv irrecv(IR_PIN);
 
+I2CRelay relay = I2CRelay();
 
-template <class T> int EEPROM_writeAnything(int ee, const T& value)
+template <class T> uint16_t EEPROM_writeAnything(uint16_t ee, const T& value)
 {
     const byte* p = (const byte*)(const void*)&value;
-    int i;
+    uint16_t i;
     for (i = 0; i < sizeof(value); i++)
 	  EEPROM.write(ee++, *p++);
     return i;
 }
 
-template <class T> int EEPROM_readAnything(int ee, T& value)
+template <class T> uint16_t EEPROM_readAnything(uint16_t ee, T& value)
 {
     byte* p = (byte*)(void*)&value;
-    int i;
+    uint16_t i;
     for (i = 0; i < sizeof(value); i++)
 	  *p++ = EEPROM.read(ee++);
     return i;
@@ -258,7 +261,7 @@ void loop() {
   
   else if (global_mode == 2) {       // Setting a value
     //Serial.println("MODE 2");
-       // if the menu item is not a simple byte value
+       // if the menu item is not a simple uint8_t value
     if ( menu_mapping[menu_position].eepromLoc == 0 ){
       if ( menu_mapping[menu_position].pos == 2 ){ //set clock
         set_time();
@@ -295,12 +298,12 @@ if (global_mode == 0){
 }
 
 
-void update_clock(int x, int y){
+void update_clock(uint8_t x, uint8_t y){
   lcd.cursorTo(x,y);
   lcd.print(strTime);
 }
 
-void update_ph(int x, int y){
+void update_ph(uint8_t x, uint8_t y){
     lcd.cursorTo(x,y);
     lcd.print("Ph: ");
     getPH();
@@ -311,8 +314,8 @@ void update_ph(int x, int y){
 
 void getPH( void ){
   double sum = 0.0;
-  int samples = 15;
-  for (int i=0; i<=samples;i++){
+  uint8_t samples = 15;
+  for (uint8_t i=0; i<=samples;i++){
     sum+=analogRead(PH_READ_PIN);
     delay(20);
   }
@@ -320,9 +323,9 @@ void getPH( void ){
 }
 
 void update_leds( void ){
-  int i;
-  byte ledVal;
-  byte percent;
+  uint8_t i;
+  uint8_t ledVal;
+  uint8_t percent;
   char ledValBuf[20];
   for (i = 0; i < blueChannels; i++){
       ledVal = setLed(minCounter, bluePins[i], blueStartMins + channelDelay*i, bluePhotoPeriod, fadeDuration, blueMax);
@@ -345,14 +348,14 @@ void update_leds( void ){
 }
 
 
-byte setLed(int mins,    // current time in minutes
-            byte ledPin,  // pin for this channel of LEDs
-            int start,   // start time for this channel of LEDs
-            int period,  // photoperiod for this channel of LEDs
-            int fade,    // fade duration for this channel of LEDs
-            byte ledMax   // max value for this channel
+uint8_t setLed(uint16_t mins,    // current time in minutes
+            uint8_t ledPin,  // pin for this channel of LEDs
+            uint16_t start,   // start time for this channel of LEDs
+            uint16_t period,  // photoperiod for this channel of LEDs
+            uint16_t fade,    // fade duration for this channel of LEDs
+            uint8_t ledMax   // max value for this channel
             )  {
-  byte ledVal = 0;
+  uint8_t ledVal = 0;
   if (mins <= start || mins > start + period)  {
     ledVal = 0;
   }
@@ -388,7 +391,7 @@ void  signon_msg( void ) {
 
 
 void init_components ( void ) {
-  int i;
+  uint16_t i;
   Wire.begin();
   //start LCD
   lcd.init();
@@ -445,7 +448,7 @@ void init_components ( void ) {
   
 }
 
-byte scan_front_button( void ) {
+uint8_t scan_front_button( void ) {
   in_keys = lcd.ReadInputKeys();
   if ( (in_keys & LCD_MCP_INPUT_PINS_MASK ) != LCD_MCP_INPUT_PINS_MASK) {
     return 1;
@@ -457,13 +460,13 @@ byte scan_front_button( void ) {
 
 void enter_setup_mode( void )  {
 
-  byte setup_finished = 0;
-  byte idx = 0, i = 0;
-  byte blink_toggle = 0;
-  byte blink_count = 0;
+  uint8_t setup_finished = 0;
+  uint8_t idx = 0, i = 0;
+  uint8_t blink_toggle = 0;
+  uint8_t blink_count = 0;
   float ratio;
-  byte eeprom_index = 0;
-  byte key_pressed = 0;
+  uint8_t eeprom_index = 0;
+  uint8_t key_pressed = 0;
   
 
   lcd.clear();
@@ -660,10 +663,10 @@ void ir_key_dump( void ) {
 
 void lcd_print_long_hex(long p_value) {
 
-  byte Byte1 = ((p_value >> 0) & 0xFF);
-  byte Byte2 = ((p_value >> 8) & 0xFF);
-  byte Byte3 = ((p_value >> 16) & 0xFF);
-  byte Byte4 = ((p_value >> 24) & 0xFF);
+  uint8_t Byte1 = ((p_value >> 0) & 0xFF);
+  uint8_t Byte2 = ((p_value >> 8) & 0xFF);
+  uint8_t Byte3 = ((p_value >> 16) & 0xFF);
+  uint8_t Byte4 = ((p_value >> 24) & 0xFF);
 
   lcd.write('(');
 
@@ -686,7 +689,7 @@ void lcd_print_long_hex(long p_value) {
   lcd.write(')');
 }
 
-void  hex2ascii( const byte val, byte* ms, byte* ls ) {
+void  hex2ascii( const uint8_t val, byte* ms, byte* ls ) {
   static char hex_buf[8];
 
   sprintf(hex_buf, "%02x ", val);

@@ -23,11 +23,6 @@ class DS1307
     void setDate(byte, byte, byte,byte, byte, byte, byte);
     void getDate(byte *, byte *, byte *,byte *, byte *, byte *, byte *);
 
-  // library-accessible "private" interface
-  private:
-    byte decToBcd(byte);
-    byte bcdToDec(byte);
-    void save(void);
 };
 
 extern DS1307 RTC;

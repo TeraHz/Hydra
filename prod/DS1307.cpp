@@ -10,29 +10,11 @@ DS1307::DS1307()
 
 DS1307 RTC=DS1307();
 
-// PRIVATE FUNCTIONS
-
 // Convert normal decimal numbers to binary coded decimal
-byte DS1307::decToBcd(byte val)
-{
-  return ( (val/10*16) + (val%10) );
-}
+#define decToBcd(val)  ( (val/10*16) + (val%10) )
 
 // Convert binary coded decimal to normal decimal numbers
-byte DS1307::bcdToDec(byte val)
-{
-  return ( (val/16*10) + (val%16) );
-}
-
-// Stops the DS1307, but it has the side effect of setting seconds to 0
-// Probably only want to use this for testing
-/*void stopDs1307()
-{
-  Wire.beginTransmission(DS1307_I2C_ADDRESS);
-  Wire.send(0);
-  Wire.send(0x80);
-  Wire.endTransmission();
-}*/
+#define bcdToDec(val) ( (val/16*10) + (val%16) )
 
 // 1) Sets the date and time on the ds1307
 // 2) Starts the clock
