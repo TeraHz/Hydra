@@ -403,7 +403,7 @@ void init_components ( void ) {
   irrecv.enableIRIn();
   
   //set the date
-  //RTC.setDate(second, minute, hour, dayOfWeek, dayOfMonth, month, year);
+  RTC.setDate(second, minute, hour, dayOfWeek, dayOfMonth, month, year);
   
   //read remote keys from EEPROM  
   for (i=0; i<=MAX_FUNCTS; i++) {

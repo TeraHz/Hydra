@@ -11,11 +11,16 @@ DS1307::DS1307()
 DS1307 RTC=DS1307();
 
 // Convert normal decimal numbers to binary coded decimal
-#define decToBcd(val)  ( (val/10*16) + (val%10) )
+byte decToBcd(byte val)
+{
+  return ( (val/10*16) + (val%10) );
+}
 
 // Convert binary coded decimal to normal decimal numbers
-#define bcdToDec(val) ( (val/16*10) + (val%16) )
-
+byte bcdToDec(byte val)
+{
+  return ( (val/16*10) + (val%16) );
+}
 // 1) Sets the date and time on the ds1307
 // 2) Starts the clock
 // 3) Sets hour mode to 24 hour clock
