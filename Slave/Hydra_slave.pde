@@ -9,6 +9,8 @@
  */
 
 #include "etherShield.h"
+#include <Wire.h>
+#include<stdlib.h>
 // ** Local Network Setup **
 // Please modify the following lines. mac and ip have to be unique
 // in your local area network. You can not have the same numbers in
@@ -48,8 +50,17 @@ static uint8_t resend=0;
 int my_temp1 = 0;
 int my_temp2 = 0;
 int my_temp3 = 0;
-  
-  
+
+union fUnion {
+  byte _b[4]; 
+  float _fval;
+} 
+FUnion;	 //DRPS = Drum Revs per Second
+
+byte data[4];
+int i = 0;
+float PH=0.0;
+
 #define STATUS_BUFFER_SIZE 50
 
 #define BUFFER_SIZE 650
@@ -58,53 +69,12 @@ static uint8_t buf[BUFFER_SIZE+1];
 // global string buffer for twitter message:
 static char statusstr[STATUS_BUFFER_SIZE];
 
-  char buffer1[8];
-  char buffer2[8];
-  char buffer3[8];
+char buffer1[8];
+char buffer2[8];
+char buffer3[8];
+char buffer4[8];
 // Instantiate the EtherShield class
 EtherShield es=EtherShield();
-
-// Specify data and clock connections and instantiate SHT1x object
-#define dataPin  5
-#define clockPin 6
-
-char numStr[10];
-char inTempStr[8];
-char inHumidStr[8];
-char inDewPointStr[8];
-
-/* Format a number to 2 decimal places number is either x100 or not, if not then only display number */
-void formatNum( int num, boolean multiply, char *numStrPtr ) {
-  boolean neg = (num < 0 );
-  char *strPtr = numStrPtr;
-
-  for(int i=0; i<8; i++ ) 
-     *strPtr++ = '\0';
-    
-  strPtr = numStrPtr;
-  
-  if( neg ) {
-    num *= -1;
-    *strPtr++ = '-';
-  }
-  if( multiply ) {
-    // First part before decimalpoint
-    itoa( num / 100, strPtr, 10 );
-
-    int pos = strlen( numStrPtr );
-    strPtr = numStrPtr + pos;
-    *strPtr++ = '.';
-    int decimal = num % 100;
-    if( decimal > 10 ) {
-      itoa( decimal, strPtr, 10 );
-    } else {
-      *strPtr++ = '0';
-      itoa( decimal, strPtr, 10 );
-    }
-  } else {
-    itoa(num, strPtr, 10 );
-  }
-}
 
 // prepare the webpage by writing the data to the tcp send buffer
 uint16_t print_webpage(uint8_t *buf)
@@ -150,8 +120,9 @@ void browserresult_callback(uint8_t statuscode,uint16_t datapos){
 // Perform setup on ethernet and oneWire
 void setup(){
   Serial.begin(19200);
-//  Wire.begin(2);
-//  Wire.onReceive(receiveEvent);
+  Serial.println("Let's do it!");
+  Wire.begin(4);                // join i2c bus with address #4
+  Wire.onReceive(receiveEvent); // register event
   // initialize enc28j60
   es.ES_enc28j60Init(mymac);
   //init the ethernet/ip layer:
@@ -185,7 +156,11 @@ void loop(){
         my_temp1 = read_value(buffer1, 0);
         my_temp2 = read_value(buffer2, 2);
         my_temp2 = read_value(buffer3, 3);
-        sprintf( statusstr, "?p1=%s&p2=%s&p3=%s", buffer1, buffer2, buffer3 );
+        dtostrf(PH,4,2,buffer4);
+        Serial.print("PH: "); 
+        Serial.println(buffer4);
+        
+        sprintf( statusstr, "?p1=%s&p2=%s&p3=%s&p4=%s", buffer1, buffer2, buffer3, buffer4 );
         es.ES_client_set_wwwip(webip);
         es.ES_client_browse_url(PSTR(WEBURL),statusstr,PSTR(WEB_VHOST), &browserresult_callback);
         start_web_client=2;
@@ -208,7 +183,7 @@ int read_value( char *string_ret, int my_analog_pin )
   int dec = 0;
   void init( void );
   int read_value( char * );
-  
+
   // variables
   char degrees_cf;  // 'C' or 'F'
   int int_sensor_value; // these hold raw values (higher res, not scaled or shifted) and so have higher precision
@@ -217,9 +192,9 @@ int read_value( char *string_ret, int my_analog_pin )
   float lastTemp;
   float curTemp;
   char lm35_str_buf[8];   // for sprintf formating
-  
+
   for(i = 0;i <= SENSOR_READ_COUNT;i++){ // gets 8 samples of temperature
-  Serial.println(analogRead(my_analog_pin),DEC);
+    Serial.println(analogRead(my_analog_pin),DEC);
     tempsum = tempsum + ( 5.0 * analogRead(my_analog_pin) * 100.0) / 1024.0;
     delayMicroseconds(100);
 
@@ -237,13 +212,18 @@ int read_value( char *string_ret, int my_analog_pin )
 
 void receiveEvent(int howMany)
 {
-//  while(0 < Wire.available()) // loop through all but the last
-//  {
-//    char c = Wire.receive(); // receive byte as a character
-//    Serial.print(c);         // print the character
-//  }
-//  int x = Wire.receive();    // receive byte as an integer
-//  Serial.println(x);         // print the integer
-}
+  Serial.println("Calling receiveEvent");
+  int i = 0;
+  while(Wire.available())    // slave may send less than requested
+  {
+    data[i] = Wire.receive(); // receive a byte as character
+    i = i + 1;
+  } 
+  FUnion._b[0] = data[0];
+  FUnion._b[1] = data[1];
+  FUnion._b[2] = data[2];
+  FUnion._b[3] = data[3];
 
+  PH = FUnion._fval;
+}
 
