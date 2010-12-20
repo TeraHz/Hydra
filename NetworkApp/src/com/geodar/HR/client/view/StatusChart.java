@@ -144,22 +144,4 @@ public class StatusChart extends VerticalPanel {
 		}
 		statChart.draw(data, options);
 	}
-	// @SuppressWarnings("deprecation")
-	// private Date getDate(String str){
-	// String[] a = str.split(" ");
-	// String[] b = a[0].split("-");
-	// String[] c = a[1].split(":");
-	// int year, month, day, hrs, min, sec;
-	// try{
-	// year = Integer.parseInt(b[0]);
-	// month = Integer.parseInt(b[1]);
-	// day = Integer.parseInt(b[2]);
-	// hrs = Integer.parseInt(c[0]);
-	// min = Integer.parseInt(c[1]);
-	// sec = Integer.parseInt(c[2]);
-	// }catch(Exception e){
-	// return new Date();
-	// }
-	// return new Date(year - 1900, month-1, day, hrs, min, sec);
-	// }
 }

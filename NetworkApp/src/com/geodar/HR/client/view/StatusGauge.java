@@ -32,12 +32,39 @@ public class StatusGauge extends VerticalPanel {
 	private Timer timer;
 	private RequestBuilder builder;
 	final Label nameField = new Label();
+	int start;
+	int end;
+	String title;
+	int startG, startY, startR, endG, endY, endR;
 	
 	public StatusGauge(String query,String title, final int start, final int end) {
 		this.query = query;
-
+		this.start = start;
+		this.end = end;
 		this.url = URL.encode("http://"+Window.Location.getHost()+Configuration.GaugeURL+query);
+		this.title = title;
 		GWT.log(this.url);
+		init_components();
+	}
+	
+	public StatusGauge(String query,String title, final int start, final int end, int startG, int endG, int startY, int endY, int startR, int endR) {
+		this.query = query;
+		this.start = start;
+		this.end = end;
+		this.url = URL.encode("http://"+Window.Location.getHost()+Configuration.GaugeURL+query);
+		this.title = title;
+		this.startG = startG;
+		this.startY = startY;
+		this.startR = startR;
+		this.endG = endG;
+		this.endY = endY;
+		this.endR = endR;
+		GWT.log(this.url);
+		init_components();
+
+	}
+	
+	private void init_components(){
 		builder = new RequestBuilder(RequestBuilder.GET, this.url);
 		nameField.setText(title);
 		
@@ -50,8 +77,9 @@ public class StatusGauge extends VerticalPanel {
 				options.setHeight(Configuration.GaugeX);
 				options.setGaugeRange(start, end);
 				options.setMinorTicks(Configuration.GaugeTicks);
-//				options.setGreenRange(start+10, end-10);
-//				options.setYellowRange(start, end);
+				options.setYellowRange(startY, endY);
+				options.setGreenRange(startG, endG);
+				options.setRedRange(startR, endR);
 
 				getData();
 
@@ -155,4 +183,5 @@ public class StatusGauge extends VerticalPanel {
 		gauge.draw(data, options);
 
 	}
+
 }

@@ -1,7 +1,6 @@
 <?php 
 require_once("JSON.php");
-include_once 'db.inc';
-
+include_once("db.inc.php");
 $conector = mysql_connect(DB_HOST, DB_USER, DB_PASS) or die(mysql_error());
 mysql_select_db(DB_NAME) or die(mysql_error());
 
