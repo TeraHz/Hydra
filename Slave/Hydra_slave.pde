@@ -7,31 +7,27 @@
  * TCP/IP code originally from tuxgraphics.org - combined with ethershield library by me.
  *
  */
-
-#include "etherShield.h"
 #include <Wire.h>
 #include<stdlib.h>
+#include "etherShield.h"
+#include "OneWire.h"
+#include "DallasTemperature.h"
+
 // ** Local Network Setup **
 // Please modify the following lines. mac and ip have to be unique
 // in your local area network. You can not have the same numbers in
 // two devices:
-static uint8_t mymac[6] = {
-  0x00,0x1c,0x42,0x00,0x00,0x10};
-#define SENSOR_READ_COUNT           10
-#define SENSOR_MEASURE_TOLERANCE     1
+static uint8_t mymac[6] = { 0x00,0x1c,0x42,0x00,0x00,0x10};
 
 // how did I get the mac addr? Translate the first 3 numbers into ascii is: TUX
 // The IP address of the arduino.
-static uint8_t myip[4] = {
-  192,168,1,127};
+static uint8_t myip[4] = {192,168,1,127};
 
 // Default gateway. The ip address of your DSL/Cable router.
-static uint8_t gwip[4] = {
-  192,168,1,1};
+static uint8_t gwip[4] = {192,168,1,1};
 
 // IP address of the host running php script (IP of the first portion of the URL):
-static uint8_t webip[4] = {
-  69,163,220,143};
+static uint8_t webip[4] = {69,163,220,143};
 
 // The name of the virtual host which you want to contact at webip (hostname of the first portion of the URL):
 #define WEB_VHOST "jorko.geodar.com"
@@ -41,6 +37,26 @@ static uint8_t webip[4] = {
 
 // listen port for tcp/www:
 #define MYWWWPORT 80
+
+// Data wire is plugged into pin 3 on the Arduino
+#define ONE_WIRE_BUS 3
+
+// Precision can be from 9 to 12 on the DS12B20
+#define TEMPERATURE_PRECISION 11
+
+
+// Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
+OneWire oneWire(ONE_WIRE_BUS);
+
+
+// Pass our oneWire reference to Dallas Temperature. 
+DallasTemperature sensors(&oneWire);
+
+// arrays to hold device addresses
+DeviceAddress DTThermometer;
+DeviceAddress RoomThermometer;
+DeviceAddress SumpThermometer;
+
 
 static volatile uint8_t start_web_client=0;  // 0=off but enabled, 1=send update, 2=sending initiated, 3=update was sent OK, 4=diable updates
 static uint8_t web_client_attempts=0;
@@ -129,7 +145,24 @@ void setup(){
   es.ES_init_ip_arp_udp_tcp(mymac,myip, MYWWWPORT);
   // init the web client:
   es.ES_client_set_gwip(gwip);  // e.g internal IP of dsl router
+
+  //setup temperature library
+  sensors.begin();
+  
+  sensors.getAddress(DTThermometer, 0);
+  sensors.getAddress(RoomThermometer, 1);
+  sensors.getAddress(SumpThermometer, 2);
+//  DTThermometer = { 0x28, 0x14, 0x0B, 0xB2, 0x02, 0x00, 0x00, 0x30 };
+//  RoomThermometer = { 0x28, 0xE9, 0xBC, 0xB1, 0x02, 0x00, 0x00, 0x9E };
+//  SumpThermometer = {  0x28, 0xED, 0xA3, 0xB2, 0x02, 0x00, 0x00, 0xD9 };
+  
+  sensors.setResolution(DTThermometer, TEMPERATURE_PRECISION);
+  sensors.setResolution(RoomThermometer, TEMPERATURE_PRECISION);
+  sensors.setResolution(SumpThermometer, TEMPERATURE_PRECISION);
+
+  
 }
+
 
 // The business end of things
 void loop(){
@@ -145,7 +178,7 @@ void loop(){
       // Nothing received, jus see if there is anythng to do 
       // update every 60s
       time = millis();
-      if( time > (lastSend + 60000) ) {
+      if( time > (lastSend + 59625) ) {
         resend=1; // resend once if it failed
         start_web_client=1;
         lastSend = time;
@@ -153,12 +186,18 @@ void loop(){
 
       if (start_web_client==1) {
         // Read values from the sensor
-        my_temp1 = read_value(buffer1, 0);
-        my_temp2 = read_value(buffer2, 2);
-        my_temp2 = read_value(buffer3, 3);
+//        my_temp1 = read_value(buffer1, 0);//room
+//        my_temp2 = read_value(buffer2, 2);//sump
+//        my_temp2 = read_value(buffer3, 3);//DT
         dtostrf(PH,4,2,buffer4);
+        
         Serial.print("PH: "); 
         Serial.println(buffer4);
+        
+        sensors.requestTemperatures();
+        dtostrf(printData(RoomThermometer),4,2,buffer1);
+        dtostrf(printData(DTThermometer),4,2,buffer3);
+        dtostrf(printData(SumpThermometer),4,2,buffer2);
         
         sprintf( statusstr, "?p1=%s&p2=%s&p3=%s&p4=%s", buffer1, buffer2, buffer3, buffer4 );
         es.ES_client_set_wwwip(webip);
@@ -175,41 +214,39 @@ void loop(){
   }
 }
 
-int read_value( char *string_ret, int my_analog_pin )
+// function to print a device address
+void printAddress(DeviceAddress deviceAddress)
 {
-  Serial.print("Reading value: ");
-  int tempsum = 0;
-  byte i;
-  int dec = 0;
-  void init( void );
-  int read_value( char * );
-
-  // variables
-  char degrees_cf;  // 'C' or 'F'
-  int int_sensor_value; // these hold raw values (higher res, not scaled or shifted) and so have higher precision
-  int last_int_sensor_value;
-  float smooth_sensor_value; // this is a snapshot OR a smoothed-out raw sensor value, with scaling applied (converted to C or F)
-  float lastTemp;
-  float curTemp;
-  char lm35_str_buf[8];   // for sprintf formating
-
-  for(i = 0;i <= SENSOR_READ_COUNT;i++){ // gets 8 samples of temperature
-    Serial.println(analogRead(my_analog_pin),DEC);
-    tempsum = tempsum + ( 5.0 * analogRead(my_analog_pin) * 100.0) / 1024.0;
-    delayMicroseconds(100);
-
+  for (uint8_t i = 0; i < 8; i++)
+  {
+    // zero pad the address if necessary
+    if (deviceAddress[i] < 16) Serial.print("0");
+    Serial.print(deviceAddress[i], HEX);
   }
-
-  curTemp = tempsum/SENSOR_READ_COUNT; // better precision
-  curTemp = curTemp-0.7;
-  dec = tempsum - curTemp*10;
-  //curTemp = (curTemp +lastTemp)/2;
-  sprintf(string_ret, "%d.%dC", (int)curTemp, dec);
-  Serial.println(curTemp,DEC);
-  return (int)curTemp;
-
 }
 
+// function to print the temperature for a device
+float printTemperature(DeviceAddress deviceAddress)
+{
+  float tempC = sensors.getTempC(deviceAddress);
+  Serial.print("Temp C: ");
+  Serial.print(tempC);
+  Serial.print(" Temp F: ");
+  Serial.print(DallasTemperature::toFahrenheit(tempC));
+  return tempC;
+}
+
+
+float printData(DeviceAddress deviceAddress)
+{
+  float tmp;
+  Serial.print("Device Address: ");
+  printAddress(deviceAddress);
+  Serial.print(" ");
+  tmp = printTemperature(deviceAddress);
+  Serial.println();
+  return tmp;
+}
 void receiveEvent(int howMany)
 {
   Serial.println("Calling receiveEvent");
@@ -226,4 +263,6 @@ void receiveEvent(int howMany)
 
   PH = FUnion._fval;
 }
+
+
 
