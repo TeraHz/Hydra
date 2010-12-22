@@ -2,6 +2,7 @@ package com.geodar.HR.client.view;
 
 import java.util.Date;
 
+import com.google.gwt.core.client.GWT;
 import com.google.gwt.http.client.Request;
 import com.google.gwt.http.client.RequestBuilder;
 import com.google.gwt.http.client.RequestCallback;
@@ -13,7 +14,9 @@ import com.google.gwt.json.client.JSONException;
 import com.google.gwt.json.client.JSONNumber;
 import com.google.gwt.json.client.JSONObject;
 import com.google.gwt.json.client.JSONParser;
+import com.google.gwt.json.client.JSONString;
 import com.google.gwt.json.client.JSONValue;
+import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.ui.VerticalPanel;
 import com.google.gwt.visualization.client.AbstractDataTable;
 import com.google.gwt.visualization.client.AbstractDataTable.ColumnType;
@@ -30,16 +33,16 @@ public class Chart extends VerticalPanel {
 
 	RequestBuilder builder;
 
-	public Chart(String query, String url) {
+	public Chart(String query) {
 		this.query = query;
-		this.url = url;
-		url = URL.encode(url + query);
+		this.url = URL.encode("http://" + Window.Location.getHost() + Configuration.ChartURL + query);
+		GWT.log(url);
 		builder = new RequestBuilder(RequestBuilder.GET, url);
 		// Create a callback to be called when the visualization API
 		// has been loaded.
 		Runnable onLoadCallback = new Runnable() {
 			public void run() {
-				atl = new AnnotatedTimeLine(createTable(), createOptions(), "550px", "300px");
+				atl = new AnnotatedTimeLine(createTable(), createOptions(), "750px", "300px");
 				// Add a chart visualization.
 				add(atl);
 				updateGraph();
@@ -49,7 +52,6 @@ public class Chart extends VerticalPanel {
 		// Load the visualization api, passing the onLoadCallback to be called
 		// when loading is done.
 		VisualizationUtils.loadVisualizationApi(onLoadCallback, AnnotatedTimeLine.PACKAGE);
-
 
 	}
 
@@ -73,7 +75,6 @@ public class Chart extends VerticalPanel {
 
 		// add watch list stock symbols to URL
 		System.out.println("Updating graph");
-		
 
 		try {
 			builder.sendRequest(null, new RequestCallback() {
@@ -120,30 +121,61 @@ public class Chart extends VerticalPanel {
 
 	private void updateTable(JSONArray array) {
 		JSONValue jsonValue;
+		data.removeRows(0, data.getNumberOfRows()-1);
 
+		data.addRows(array.size());
+		GWT.log("array size : "+ array.size());
 		for (int i = 0; i < array.size(); i++) {
 			JSONObject jsEntry;
 			JSONNumber jsVal;
+			JSONString jsDate;
 
 			if ((jsEntry = array.get(i).isObject()) == null) {
-				System.out.println("1");
 				continue;
 			}
-			
+
 			if ((jsonValue = jsEntry.get("value")) == null) {
-				System.out.println("4");
 				continue;
 			}
 			if ((jsVal = jsonValue.isNumber()) == null) {
-				System.out.println("5");
 				continue;
 			}
+			//GWT.log("jsVal : "+ jsVal);
+			if ((jsonValue = jsEntry.get("date")) == null) {
+				continue;
+			}
+			if ((jsDate = jsonValue.isString()) == null) {
+				continue;
+			}
+			//GWT.log("jsDate : "+ jsDate);
+			data.setValue(i, 0, getDate(jsDate.stringValue()));
 
-			data.addRow();
-			data.setValue(data.getNumberOfRows() - 1, 0, new Date());
-			data.setValue(data.getNumberOfRows() - 1, 1, jsVal.doubleValue());
-			atl.draw(data);
+			//GWT.log("added Date : "+ getDate(jsDate.stringValue()));
+			data.setValue(i, 1, jsVal.doubleValue());
+			//GWT.log("added value : "+ jsVal.doubleValue());
+
 		}
+		atl.draw(data);
+
+	}
+
+	@SuppressWarnings("deprecation")
+	private Date getDate(String str) {
+		String[] a = str.split(" ");
+		String[] b = a[0].split("-");
+		String[] c = a[1].split(":");
+		int year, month, day, hrs, min, sec;
+		try {
+			year = Integer.parseInt(b[0]);
+			month = Integer.parseInt(b[1]);
+			day = Integer.parseInt(b[2]);
+			hrs = Integer.parseInt(c[0]);
+			min = Integer.parseInt(c[1]);
+			sec = Integer.parseInt(c[2]);
+		} catch (Exception e) {
+			return new Date();
+		}
+		return new Date(year - 1900, month - 1, day, hrs, min, sec);
 	}
 
 	public String getQuery() {

@@ -9,5 +9,6 @@ public class Configuration {
 	protected static int GaugeRefresh = 2000; // in ms
 	protected static String GaugeURL = "/getSingle.php?category=";
 	protected static String StatusChartURL = "/getSummary.php?category=";
+	protected static String ChartURL = "/get.php?category=";
 	
 }
