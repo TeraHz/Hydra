@@ -17,21 +17,25 @@
 // Please modify the following lines. mac and ip have to be unique
 // in your local area network. You can not have the same numbers in
 // two devices:
-static uint8_t mymac[6] = { 0x00,0x1c,0x42,0x00,0x00,0x10};
+static uint8_t mymac[6] = { 
+  0x00,0x1c,0x42,0x00,0x00,0x10};
 
 // how did I get the mac addr? Translate the first 3 numbers into ascii is: TUX
 // The IP address of the arduino.
-static uint8_t myip[4] = {192,168,1,127};
+static uint8_t myip[4] = {
+  192,168,1,127};
 
 // Default gateway. The ip address of your DSL/Cable router.
-static uint8_t gwip[4] = {192,168,1,1};
+static uint8_t gwip[4] = {
+  192,168,1,1};
 
 // IP address of the host running php script (IP of the first portion of the URL):
-static uint8_t webip[4] = {69,163,220,143};
+static uint8_t webip[4] = {
+  69,163,220,144};
 
 // The name of the virtual host which you want to contact at webip (hostname of the first portion of the URL):
-#define WEB_VHOST "jorko.geodar.com"
-#define WEBURL "/hr/storedata.php"
+#define WEB_VHOST "somehost.com"
+#define WEBURL "/storedata.php"
 
 // End of configuration 
 
@@ -97,28 +101,55 @@ uint16_t print_webpage(uint8_t *buf)
 {
   uint16_t plen;
 
-  char vstr[5];
   plen = es.ES_fill_tcp_data_p(buf,0,PSTR("HTTP/1.0 200 OK\r\nContent-Type: text/html\r\nPragma: no-cache\r\n\r\n"));
-  plen=es.ES_fill_tcp_data_p(buf,plen,PSTR("<h1>Temp/Humidity Monitor</h1><pre>\n"));
-
-  plen=es.ES_fill_tcp_data_p(buf,plen,PSTR("temp1: "));
-  sprintf(vstr, "%d", my_temp1);
-  plen=es.ES_fill_tcp_data(buf,plen,vstr);
-  plen=es.ES_fill_tcp_data_p(buf,plen,PSTR("\n"));
-
-  plen=es.ES_fill_tcp_data_p(buf,plen,PSTR("temp2: "));
-  sprintf(vstr, "%d", my_temp2);
-  plen=es.ES_fill_tcp_data(buf,plen,vstr);
-  plen=es.ES_fill_tcp_data_p(buf,plen,PSTR("\n"));
-
-  plen=es.ES_fill_tcp_data_p(buf,plen,PSTR("temp3: "));
-  sprintf(vstr, "%d", my_temp3);
-  plen=es.ES_fill_tcp_data(buf,plen,vstr);
-  plen=es.ES_fill_tcp_data_p(buf,plen,PSTR("\n"));
-
-
-  plen=es.ES_fill_tcp_data_p(buf,plen,PSTR("</pre>"));
-
+  plen=es.ES_fill_tcp_data_p(buf,plen,PSTR(""));
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("<html>"));
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("<head>"));
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("<title>TeraHz's Hydra</title>"));
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("</head>"));
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("<body>"));
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("<img src=\"http://hydra-reef.com/wiki/skins/hydralogo.png\" />"));
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("<br />"));
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("<table style=\"border:1px solid #6699cc; width:150px;\">"));
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("<tr>"));
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("<td colspan=\"2\" style=\"text-align:center;\">Temperature</td>"));
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("</tr>"));
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("<tr>"));
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("<td>Sensor 1</td>"));
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("<td>"));
+  plen=es.ES_fill_tcp_data(buf,plen,buffer1);
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("C&deg;"));
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("</td>"));
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("</tr>"));
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("<tr>"));
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("<td>Sensor 2</td>"));
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("<td>"));
+  plen=es.ES_fill_tcp_data(buf,plen,buffer2);
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("C&deg;"));
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("</td>"));
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("</tr>"));
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("<tr>"));
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("<td>Sensor 3</td>"));
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("<td>"));
+  plen=es.ES_fill_tcp_data(buf,plen,buffer3);
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("C&deg;"));
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("</td>"));
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("</tr>"));
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("</table>"));
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("<br />"));
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("<table style=\"border:1px solid #6699cc; width:150px\">"));
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("<tr>"));
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("<td colspan=\"2\" style=\"text-align:center;\">PH</td>"));
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("</tr>"));
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("<tr>"));
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("<td>Probe 1</td>"));
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("<td>"));
+  plen=es.ES_fill_tcp_data(buf,plen,buffer4);
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("</td>"));
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("</tr>"));
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("</table>"));
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("</body>"));
+  plen = es.ES_fill_tcp_data_p(buf,plen,PSTR("</html>"));
   return(plen);
 }
 
@@ -126,13 +157,17 @@ uint16_t print_webpage(uint8_t *buf)
 // do somthing here to check all was OK.
 void browserresult_callback(uint8_t statuscode,uint16_t datapos){
   if (statuscode==0){
+    Serial.println("HTTP OK");
     web_client_sendok++;
+  }
+  else{
+    Serial.print("HTTP status code:");
+    Serial.println(statuscode, DEC);
   }
   // clear pending state at sucessful contact with the
   // web server even if account is expired:
   if (start_web_client==2) start_web_client=3;
 }
-
 // Perform setup on ethernet and oneWire
 void setup(){
   Serial.begin(19200);
@@ -148,19 +183,19 @@ void setup(){
 
   //setup temperature library
   sensors.begin();
-  
+
   sensors.getAddress(DTThermometer, 0);
   sensors.getAddress(RoomThermometer, 1);
   sensors.getAddress(SumpThermometer, 2);
-//  DTThermometer = { 0x28, 0x14, 0x0B, 0xB2, 0x02, 0x00, 0x00, 0x30 };
-//  RoomThermometer = { 0x28, 0xE9, 0xBC, 0xB1, 0x02, 0x00, 0x00, 0x9E };
-//  SumpThermometer = {  0x28, 0xED, 0xA3, 0xB2, 0x02, 0x00, 0x00, 0xD9 };
-  
+  //  DTThermometer = { 0x28, 0x14, 0x0B, 0xB2, 0x02, 0x00, 0x00, 0x30 };
+  //  RoomThermometer = { 0x28, 0xE9, 0xBC, 0xB1, 0x02, 0x00, 0x00, 0x9E };
+  //  SumpThermometer = {  0x28, 0xED, 0xA3, 0xB2, 0x02, 0x00, 0x00, 0xD9 };
+
   sensors.setResolution(DTThermometer, TEMPERATURE_PRECISION);
   sensors.setResolution(RoomThermometer, TEMPERATURE_PRECISION);
   sensors.setResolution(SumpThermometer, TEMPERATURE_PRECISION);
 
-  
+
 }
 
 
@@ -186,19 +221,19 @@ void loop(){
 
       if (start_web_client==1) {
         // Read values from the sensor
-//        my_temp1 = read_value(buffer1, 0);//room
-//        my_temp2 = read_value(buffer2, 2);//sump
-//        my_temp2 = read_value(buffer3, 3);//DT
+        //        my_temp1 = read_value(buffer1, 0);//room
+        //        my_temp2 = read_value(buffer2, 2);//sump
+        //        my_temp2 = read_value(buffer3, 3);//DT
         dtostrf(PH,4,2,buffer4);
-        
+
         Serial.print("PH: "); 
         Serial.println(buffer4);
-        
+
         sensors.requestTemperatures();
         dtostrf(printData(RoomThermometer),4,2,buffer1);
         dtostrf(printData(DTThermometer),4,2,buffer3);
         dtostrf(printData(SumpThermometer),4,2,buffer2);
-        
+
         sprintf( statusstr, "?p1=%s&p2=%s&p3=%s&p4=%s", buffer1, buffer2, buffer3, buffer4 );
         es.ES_client_set_wwwip(webip);
         es.ES_client_browse_url(PSTR(WEBURL),statusstr,PSTR(WEB_VHOST), &browserresult_callback);
@@ -263,6 +298,7 @@ void receiveEvent(int howMany)
 
   PH = FUnion._fval;
 }
+
 
 
 
