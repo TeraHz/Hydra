@@ -15,9 +15,9 @@
 #define SplashScrnTime        2     //  Splash Screen display time, seconds  
 
 const char Title[]   = { 
-  "Hydra-THz" };
+  "Hydra-THZ" };
 const char Version[] = {  
-  "0.01" };
+  "0.02" };
 
 uint8_t bluePins[]      = {
   5, 9};      // pwm pins for blues
@@ -27,16 +27,18 @@ uint8_t whitePins[]     = {
 uint8_t blueChannels    =        2;    // how many PWMs for blues (count from above)
 uint8_t whiteChannels   =        2;    // how many PWMs for whites (count from above)
 
-uint16_t blueStartMins    =        620;  // minute to start blues. Change this to the number of minutes past
+
+uint16_t blueStartMins    =        690;  // minute to start blues. Change this to the number of minutes past
 //    midnight you want the blues to start.
 
-uint16_t whiteStartMins   =        640;  // minute to start whites. Same as above.
-uint16_t bluePhotoPeriod  =        760;  // photoperiod in minutes, blues. Change this to alter the total
+uint16_t whiteStartMins   =        750;  // minute to start whites. Same as above.
+uint16_t bluePhotoPeriod  =        600;  // photoperiod in minutes, blues. Change this to alter the total
 // photoperiod for blues.
 
-uint16_t whitePhotoPeriod =        720;  // photoperiod in minutes, whites. Same as above.
-uint16_t fadeDuration     =        60;   // duration of the fade on and off for sunrise and sunset. Change
+uint16_t whitePhotoPeriod =        360;  // photoperiod in minutes, whites. Same as above.
+uint16_t fadeDuration     =        120;   // duration of the fade on and off for sunrise and sunset. Change
 //    this to alter how long the fade lasts.
+
 
 uint8_t moonLevel       =        4;    // level of blues for moonlights
 uint16_t moonDuration     =        60;   // duration of moonlights
@@ -60,16 +62,20 @@ char strTime[20];
 char tmp[20];
 float PH = 0;
 uint8_t second = 00;
-uint8_t minute = 29;
-uint8_t hour = 10;
-uint8_t dayOfWeek = 1;
-uint8_t dayOfMonth = 7;
-uint8_t month = 10;
-uint8_t year = 10;
+uint8_t minute = 00;
+uint8_t hour = 23;
+uint8_t dayOfWeek = 4;
+uint8_t dayOfMonth = 3;
+uint8_t month = 3;
+uint8_t year = 11;
 uint8_t go_to_setup_mode = 0;
 uint8_t global_mode = 0;
 uint8_t sPos = 1; // position for setting
-union fUnion {byte _b[4]; float _fval;} FUnion;
+union fUnion {
+  byte _b[4]; 
+  float _fval;
+} 
+FUnion;
 uint8_t in_keys = 0;
 long key;
 uint8_t ms,ls, ts, tmi, th, tdw, tdm, tmo, ty;
@@ -148,47 +154,47 @@ struct _ir_keypress_mapping {
 
 ir_keypress_mapping[MAX_FUNCTS+1] = {
   { 
-    0x00, IFC_DIAG_IR_RX,      "Debug IR (rx)"      }
+    0x00, IFC_DIAG_IR_RX,      "Debug IR (rx)"            }
   ,{ 
-    0x00, IFC_MOONLIGHT_ONOFF, "Moonlight"          }
+    0x00, IFC_MOONLIGHT_ONOFF, "Moonlight"                }
   ,{ 
-    0x00, IFC_MENU,            "Menu"               }
+    0x00, IFC_MENU,            "Menu"                     }
   ,{ 
-    0x00, IFC_UP,              "Up Arrow"           }
+    0x00, IFC_UP,              "Up Arrow"                 }
   ,{ 
-    0x00, IFC_DOWN,            "Down Arrow"         }
+    0x00, IFC_DOWN,            "Down Arrow"               }
   ,{ 
-    0x00, IFC_LEFT,            "Left Arrow"         }
+    0x00, IFC_LEFT,            "Left Arrow"               }
   ,{ 
-    0x00, IFC_RIGHT,           "Right Arrow"        }
+    0x00, IFC_RIGHT,           "Right Arrow"              }
   ,{ 
-    0x00, IFC_OK,              "Confirm/Select"     }
+    0x00, IFC_OK,              "Confirm/Select"           }
   ,{ 
-    0x00, IFC_CANCEL,          "Back/Cancel"        }
+    0x00, IFC_CANCEL,          "Back/Cancel"              }
 #ifdef NUMBER_KEYS
   ,{ 
-    0x00, IFC_KEY_1,           "Num 1"              }
+    0x00, IFC_KEY_1,           "Num 1"                    }
   ,{ 
-    0x00, IFC_KEY_2,           "Num 2"              }
+    0x00, IFC_KEY_2,           "Num 2"                    }
   ,{ 
-    0x00, IFC_KEY_3,           "Num 3"              }
+    0x00, IFC_KEY_3,           "Num 3"                    }
   ,{ 
-    0x00, IFC_KEY_4,           "Num 4"              }
+    0x00, IFC_KEY_4,           "Num 4"                    }
   ,{ 
-    0x00, IFC_KEY_5,           "Num 5"              }
+    0x00, IFC_KEY_5,           "Num 5"                    }
   ,{ 
-    0x00, IFC_KEY_6,           "Num 6"              }
+    0x00, IFC_KEY_6,           "Num 6"                    }
   ,{ 
-    0x00, IFC_KEY_7,           "Num 7"              }
+    0x00, IFC_KEY_7,           "Num 7"                    }
   ,{ 
-    0x00, IFC_KEY_8,           "Num 8"              }
+    0x00, IFC_KEY_8,           "Num 8"                    }
   ,{ 
-    0x00, IFC_KEY_9,           "Num 9"              }
+    0x00, IFC_KEY_9,           "Num 9"                    }
   ,{ 
-    0x00, IFC_KEY_0,           "Num 0"              }
+    0x00, IFC_KEY_0,           "Num 0"                    }
 #endif
   ,{ 
-    0x00, IFC_KEY_SENTINEL,    "NULL"               }
+    0x00, IFC_KEY_SENTINEL,    "NULL"                     }
 };
 
 // menu struct:
@@ -201,35 +207,35 @@ struct _menu_mapping {
 // Menu
 menu_mapping[MENU_OPTIONS] = {
   { 
-    0,  "Backlight min"      , EEPROM_BACKLIGHT_MIN       }
+    0,  "Backlight min"      , EEPROM_BACKLIGHT_MIN             }
   ,{ 
-    1,  "Backlight max"      , EEPROM_BACKLIGHT_MAX       }
+    1,  "Backlight max"      , EEPROM_BACKLIGHT_MAX             }
   ,{ 
-    2,  "Clock setup"        , 0                          }
+    2,  "Clock setup"        , 0                                }
   ,{ 
-    3,  "IR Diagnose"        , 0                          }
+    3,  "IR Diagnose"        , 0                                }
   ,{ 
-    4,  "Remote Learning"    , 0                          }
+    4,  "Remote Learning"    , 0                                }
   ,{ 
-    5,  "White LED limit"    , EEPROM_WHITE_MAX           }
+    5,  "White LED limit"    , EEPROM_WHITE_MAX                 }
   ,{ 
-    6,  "Blue LED limit"     , EEPROM_BLUE_MAX            }
+    6,  "Blue LED limit"     , EEPROM_BLUE_MAX                  }
   ,{ 
-    7,  "Moonlight level"    , EEPROM_MOON_LEVEL          }
+    7,  "Moonlight level"    , EEPROM_MOON_LEVEL                }
   ,{ 
-    8,  "White LED start"    , EEPROM_WHITE_START         }
+    8,  "White LED start"    , EEPROM_WHITE_START               }
   ,{ 
-    9,  "Blue LED start"     , EEPROM_BLUE_START          }
+    9,  "Blue LED start"     , EEPROM_BLUE_START                }
   ,{ 
-    10, "White LED duration" , EEPROM_WHITE_DURATION      }
+    10, "White LED duration" , EEPROM_WHITE_DURATION            }
   ,{ 
-    11, "Blue LED duration"  , EEPROM_BLUE_DURATION       }
+    11, "Blue LED duration"  , EEPROM_BLUE_DURATION             }
   ,{ 
-    12, "Moon duration"      , EEPROM_MOON_DURATION       }
+    12, "Moon duration"      , EEPROM_MOON_DURATION             }
   ,{ 
-    13, "Channel Delay"      , EEPROM_CHANNEL_DELAY       }
+    13, "Channel Delay"      , EEPROM_CHANNEL_DELAY             }
   ,{ 
-    14, "Fade Duration"      , EEPROM_FADE_DURATION       }
+    14, "Fade Duration"      , EEPROM_FADE_DURATION             }
 };
 
 
@@ -264,7 +270,7 @@ template <class T> uint16_t EEPROM_readAnything(uint16_t ee, T& value)
 
 
 void setup() {
-  Serial.begin(9600);
+  //Serial.begin(9600);
   init_components();
   signon_msg();
   //      pinMode(PWM_BACKLIGHT_PIN, OUTPUT);
@@ -323,8 +329,6 @@ void loop() {
   if (psecond != second){
     //Serial.println("tick");
     psecond = second;
-    sprintf(strTime,"%02d:%02d:%02d %02d/%02d/%02d",hour, minute, second, dayOfMonth, month, year);
-    minCounter = hour * 60 + minute;
     run_sec();
   }
 
@@ -333,7 +337,10 @@ void loop() {
 }
 
 void run_sec( void ){ // runs every second
+  minCounter = hour * 60 + minute;
   if (global_mode == 0){
+    sprintf(strTime,"%02d:%02d:%02d %02d/%02d/%02d",hour, minute, second, dayOfMonth, month, year);
+
     update_ph(2,0);
     update_clock(3,3);
   }
@@ -363,7 +370,7 @@ void getPH( void ){
     sum+=analogRead(PH_READ_PIN);
     delay(20);
   }
-  PH = sum/15/50;
+  PH = sum/15/46;
 }
 
 void update_leds( void ){
@@ -405,6 +412,19 @@ uint16_t period,  // photoperiod for this channel of LEDs
 uint16_t fade,    // fade duration for this channel of LEDs
 uint8_t ledMax   // max value for this channel
 )  {
+  Serial.print("current time: ");
+  Serial.println(mins);
+  Serial.print("Pin: ");
+  Serial.println(ledPin,DEC);
+  Serial.print("start time: ");
+  Serial.println(start);
+  Serial.print("photoperiod: ");
+  Serial.println(period);
+  Serial.print("fade: ");
+  Serial.println(fade);
+  Serial.print("max value for LED: ");
+  Serial.println(ledMax, DEC);
+
   uint8_t ledVal = 0;
   if (mins <= start || mins > start + period)  {
     ledVal = 0;
@@ -418,6 +438,9 @@ uint8_t ledMax   // max value for this channel
   if (mins > start + period - fade && mins <= start + period)  {
     ledVal = map(mins - start - period + fade, 0, fade, ledMax, 0);
   }
+
+  Serial.print("Setting LED to: ");
+  Serial.println(ledVal, DEC);
   analogWrite(ledPin, ledVal);
 
   return ledVal;  
@@ -462,7 +485,7 @@ void init_components ( void ) {
   }
 
   //check if eeprom is good and if not set defaults
-  if (EEPROM.read(EEPROM_MAGIC) != 02) {
+  if (EEPROM.read(EEPROM_MAGIC) != 01) {
     // init all of EEPROM area
 
     EEPROM_writeAnything(EEPROM_WHITE_LVL,         0);
@@ -479,7 +502,7 @@ void init_components ( void ) {
     EEPROM_writeAnything(EEPROM_BLUE_START,        blueStartMins);
     EEPROM_writeAnything(EEPROM_CHANNEL_DELAY,     channelDelay);
     EEPROM_writeAnything(EEPROM_FADE_DURATION,     fadeDuration);
-    EEPROM_writeAnything(EEPROM_MAGIC, 02);  // this signals that we're whole again ;)
+    EEPROM_writeAnything(EEPROM_MAGIC, 01);  // this signals that we're whole again ;)
   }
 
   //read settings from EEPROM
@@ -881,7 +904,6 @@ void set_time( void ){
   if (key == 0) {
     return;
   }
-  sprintf(strTime,"%02d:%02d:%02d %02d/%02d/%02d %d",th, tmi, ts, tdm, tmo, ty, tdw);
   update_clock(2,0);
   lcd.cursorTo(3,0);
   lcd.print("HH:MM:SS DD:MM:YY DW");
@@ -894,7 +916,6 @@ void set_time( void ){
 
   // key = Up
   else if (key == ir_keypress_mapping[IFC_UP].key_hex){
-
     if (sPos == 1){
       if (th < 23) {
         th++;
@@ -949,10 +970,11 @@ void set_time( void ){
       } 
       else {
         tdw = 1;  // wrap around
-      }   
+      }
     }
     delay (100);
-    update_clock(2,0);
+    sprintf(strTime,"%02d:%02d:%02d %02d/%02d/%02d %d",th, tmi, ts, tdm, tmo, ty, tdw);
+    update_clock(2,0);   
   }
 
 
@@ -1016,7 +1038,8 @@ void set_time( void ){
       }   
     }
     delay (100);
-    update_clock(2,0);
+    sprintf(strTime,"%02d:%02d:%02d %02d/%02d/%02d %d",th, tmi, ts, tdm, tmo, ty, tdw);
+    update_clock(2,0);   
   }
 
 
@@ -1109,6 +1132,3 @@ void diagnose_IR( void ){
   irrecv.resume(); // we just consumed one key; 'start' to receive the next value
 
 }
-
-
-
