@@ -9,15 +9,21 @@
 #include "IRremote.h"
 #include "I2CRelay.h"
 
-#define PH_READ_PIN           3     //analog pin to poll PH
+
+//**********************************
+//
+//              SETUP
+//
+//**********************************
+#define PH_READ_PIN           3     // analog pin to poll PH
 #define PWM_BACKLIGHT_PIN     8     // pwm-controlled LED backlight
 #define IR_PIN                6     // Sensor data-out pin, wired direct
 #define SplashScrnTime        2     //  Splash Screen display time, seconds  
 
-const char Title[]   = { 
-  "Hydra-THZ" };
-const char Version[] = {  
-  "0.02" };
+
+// select one of the input methods
+#define IR_INPUT              1     // used this if you are going to have IR input
+//#define KEYPAD_INPUT          1     // use this if you are going to have a physical keypad
 
 uint8_t bluePins[]      = {
   5, 9};      // pwm pins for blues
@@ -52,8 +58,18 @@ uint8_t backlight_min   =        255;
 uint8_t backlight_max   =        255;
 
 
-//stop config here
+//**********************************
+//
+//            END SETUP
+//
+//**********************************
 
+
+
+const char Title[]   = { 
+  "Hydra-THZ" };
+const char Version[] = {  
+  "0.02" };
 
 uint8_t lcd_in_use_flag = 0;
 uint8_t psecond = 0;
@@ -81,6 +97,8 @@ long key;
 uint8_t ms,ls, ts, tmi, th, tdw, tdm, tmo, ty;
 decode_results results;
 uint8_t menu_position = 0;
+
+boolean first = true;
 
 #define MENU_OPTIONS 15
 /*
@@ -154,47 +172,47 @@ struct _ir_keypress_mapping {
 
 ir_keypress_mapping[MAX_FUNCTS+1] = {
   { 
-    0x00, IFC_DIAG_IR_RX,      "Debug IR (rx)"            }
+    0x00, IFC_DIAG_IR_RX,      "Debug IR (rx)"              }
   ,{ 
-    0x00, IFC_MOONLIGHT_ONOFF, "Moonlight"                }
+    0x00, IFC_MOONLIGHT_ONOFF, "Moonlight"                  }
   ,{ 
-    0x00, IFC_MENU,            "Menu"                     }
+    0x00, IFC_MENU,            "Menu"                       }
   ,{ 
-    0x00, IFC_UP,              "Up Arrow"                 }
+    0x00, IFC_UP,              "Up Arrow"                   }
   ,{ 
-    0x00, IFC_DOWN,            "Down Arrow"               }
+    0x00, IFC_DOWN,            "Down Arrow"                 }
   ,{ 
-    0x00, IFC_LEFT,            "Left Arrow"               }
+    0x00, IFC_LEFT,            "Left Arrow"                 }
   ,{ 
-    0x00, IFC_RIGHT,           "Right Arrow"              }
+    0x00, IFC_RIGHT,           "Right Arrow"                }
   ,{ 
-    0x00, IFC_OK,              "Confirm/Select"           }
+    0x00, IFC_OK,              "Confirm/Select"             }
   ,{ 
-    0x00, IFC_CANCEL,          "Back/Cancel"              }
+    0x00, IFC_CANCEL,          "Back/Cancel"                }
 #ifdef NUMBER_KEYS
   ,{ 
-    0x00, IFC_KEY_1,           "Num 1"                    }
+    0x00, IFC_KEY_1,           "Num 1"                      }
   ,{ 
-    0x00, IFC_KEY_2,           "Num 2"                    }
+    0x00, IFC_KEY_2,           "Num 2"                      }
   ,{ 
-    0x00, IFC_KEY_3,           "Num 3"                    }
+    0x00, IFC_KEY_3,           "Num 3"                      }
   ,{ 
-    0x00, IFC_KEY_4,           "Num 4"                    }
+    0x00, IFC_KEY_4,           "Num 4"                      }
   ,{ 
-    0x00, IFC_KEY_5,           "Num 5"                    }
+    0x00, IFC_KEY_5,           "Num 5"                      }
   ,{ 
-    0x00, IFC_KEY_6,           "Num 6"                    }
+    0x00, IFC_KEY_6,           "Num 6"                      }
   ,{ 
-    0x00, IFC_KEY_7,           "Num 7"                    }
+    0x00, IFC_KEY_7,           "Num 7"                      }
   ,{ 
-    0x00, IFC_KEY_8,           "Num 8"                    }
+    0x00, IFC_KEY_8,           "Num 8"                      }
   ,{ 
-    0x00, IFC_KEY_9,           "Num 9"                    }
+    0x00, IFC_KEY_9,           "Num 9"                      }
   ,{ 
-    0x00, IFC_KEY_0,           "Num 0"                    }
+    0x00, IFC_KEY_0,           "Num 0"                      }
 #endif
   ,{ 
-    0x00, IFC_KEY_SENTINEL,    "NULL"                     }
+    0x00, IFC_KEY_SENTINEL,    "NULL"                       }
 };
 
 // menu struct:
@@ -207,35 +225,35 @@ struct _menu_mapping {
 // Menu
 menu_mapping[MENU_OPTIONS] = {
   { 
-    0,  "Backlight min"      , EEPROM_BACKLIGHT_MIN             }
+    0,  "Backlight min"      , EEPROM_BACKLIGHT_MIN               }
   ,{ 
-    1,  "Backlight max"      , EEPROM_BACKLIGHT_MAX             }
+    1,  "Backlight max"      , EEPROM_BACKLIGHT_MAX               }
   ,{ 
-    2,  "Clock setup"        , 0                                }
+    2,  "Clock setup"        , 0                                  }
   ,{ 
-    3,  "IR Diagnose"        , 0                                }
+    3,  "IR Diagnose"        , 0                                  }
   ,{ 
-    4,  "Remote Learning"    , 0                                }
+    4,  "Remote Learning"    , 0                                  }
   ,{ 
-    5,  "White LED limit"    , EEPROM_WHITE_MAX                 }
+    5,  "White LED limit"    , EEPROM_WHITE_MAX                   }
   ,{ 
-    6,  "Blue LED limit"     , EEPROM_BLUE_MAX                  }
+    6,  "Blue LED limit"     , EEPROM_BLUE_MAX                    }
   ,{ 
-    7,  "Moonlight level"    , EEPROM_MOON_LEVEL                }
+    7,  "Moonlight level"    , EEPROM_MOON_LEVEL                  }
   ,{ 
-    8,  "White LED start"    , EEPROM_WHITE_START               }
+    8,  "White LED start"    , EEPROM_WHITE_START                 }
   ,{ 
-    9,  "Blue LED start"     , EEPROM_BLUE_START                }
+    9,  "Blue LED start"     , EEPROM_BLUE_START                  }
   ,{ 
-    10, "White LED duration" , EEPROM_WHITE_DURATION            }
+    10, "White LED duration" , EEPROM_WHITE_DURATION              }
   ,{ 
-    11, "Blue LED duration"  , EEPROM_BLUE_DURATION             }
+    11, "Blue LED duration"  , EEPROM_BLUE_DURATION               }
   ,{ 
-    12, "Moon duration"      , EEPROM_MOON_DURATION             }
+    12, "Moon duration"      , EEPROM_MOON_DURATION               }
   ,{ 
-    13, "Channel Delay"      , EEPROM_CHANNEL_DELAY             }
+    13, "Channel Delay"      , EEPROM_CHANNEL_DELAY               }
   ,{ 
-    14, "Fade Duration"      , EEPROM_FADE_DURATION             }
+    14, "Fade Duration"      , EEPROM_FADE_DURATION               }
 };
 
 
@@ -310,6 +328,13 @@ void loop() {
     // if the menu item is not a simple uint8_t value
     if ( menu_mapping[menu_position].eepromLoc == 0 ){
       if ( menu_mapping[menu_position].pos == 2 ){ //set clock
+        if (first){
+          sprintf(strTime,"%02d:%02d:%02d %02d/%02d/%02d %d",th, tmi, ts, tdm, tmo, ty, tdw);
+          update_clock(2,0);   
+          lcd.cursorTo(3,0);
+          lcd.print("HH:MM:SS DD:MM:YY DW");
+          first = false;
+        }
         set_time();
       }
       else if ( menu_mapping[menu_position].pos == 3 ) {
@@ -567,7 +592,7 @@ void enter_setup_mode( void )  {
      * non-blocking poll for a keypress
      */
 
-    while ( (key = get_IR_key()) == 0 ) {
+    while ( (key = get_input_key()) == 0 ) {
 
       if (blink_toggle == 1) {
         blink_toggle = 0;
@@ -652,6 +677,17 @@ done_learn_mode:
   delay(1000);
 
   lcd.clear();
+}
+
+long get_input_key( void ){
+#ifdef IR_INPUT
+  return get_IR_key();
+#endif
+
+#ifdef KEYPAD_INPUT
+  return get_KP_key();
+#endif
+
 }
 
 long  get_IR_key( void ) {
@@ -781,7 +817,7 @@ void  hex2ascii( const uint8_t val, byte* ms, byte* ls ) {
 void onKeyPress( void )
 {
 
-  key = get_IR_key();
+  key = get_input_key();
   if (key == 0) {
     return;   // try again to sync up on an IR start-pulse
   }
@@ -844,7 +880,7 @@ void onKeyPress( void )
 /****** MAIN MENU ******/
 /***********************/
 void menu( void ) {
-  key = get_IR_key();
+  key = get_input_key();
   if (key == 0) {
     return;
   }
@@ -892,26 +928,22 @@ void menu( void ) {
 
 
 void update_menu( void ){
-  lcd.clear_L2();
-  lcd.clear_L3();
-  lcd.clear_L4();
+  lcd.clear();
   lcd.send_string(menu_mapping[menu_position].description, LCD_CURS_POS_L2_HOME);
 }
 
 
 void set_time( void ){
-  key = get_IR_key();
+  key = get_input_key();
   if (key == 0) {
     return;
   }
-  update_clock(2,0);
-  lcd.cursorTo(3,0);
-  lcd.print("HH:MM:SS DD:MM:YY DW");
   // key = OK
   if (key == ir_keypress_mapping[IFC_OK].key_hex ) {
     RTC.setDate(ts, tmi, th, tdw, tdm, tmo, ty);
     global_mode = 0;
     lcd.clear();
+    first=true;
   }
 
   // key = Up
@@ -1083,7 +1115,7 @@ void diagnose_IR( void ){
    * we got a valid IR start pulse! fetch the keycode, now.
    */
 
-  key = get_IR_key();
+  key = get_input_key();
   if (key == 0) {
     return;
   }
@@ -1132,3 +1164,4 @@ void diagnose_IR( void ){
   irrecv.resume(); // we just consumed one key; 'start' to receive the next value
 
 }
+
