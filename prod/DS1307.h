@@ -5,6 +5,7 @@
 // ensure this library description is only included once
 #ifndef DS1307_h
 #define DS1307_h
+#define DS1307_CLOCKHALT B10000000
 
 // include types & constants of Wiring core API
 #include <WConstants.h>
@@ -22,6 +23,7 @@ class DS1307
     DS1307();
     void setDate(byte, byte, byte,byte, byte, byte, byte);
     void getDate(byte *, byte *, byte *,byte *, byte *, byte *, byte *);
+    boolean isRunning();
 
 };
 
