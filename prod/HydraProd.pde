@@ -16,9 +16,10 @@
 //
 //**********************************
 
-//remove coment to enable SERIAL debug mode
-#define DEBUG           
-//#define DEBUG_LED
+//remove coment to enable various debug modes
+//#define DEBUG       //general    
+//#define DEBUG_LED   //extra for LEDs
+//#define DEBUG_CLOCK //extra for RTC
 
 // select one of the input methods
 #define IR_INPUT                    // used this if you are going to have IR input
@@ -41,9 +42,9 @@ uint8_t bluePins[]        =   {
 uint8_t whitePins[]       = { 
   10, 11};  // pwm pins for whites
 
-uint8_t blueChannels      =         2;  // how many PWMs for blues (count from above)
+uint16_t blueChannels      =         2;  // how many PWMs for blues (count from above)
 
-uint8_t whiteChannels     =         2;  // how many PWMs for whites (count from above)
+uint16_t whiteChannels     =         2;  // how many PWMs for whites (count from above)
 
 uint16_t blueStartMins    =       690;  // minute to start blues. Change this to the number of minutes past
 // midnight you want the blues to start.
@@ -84,6 +85,7 @@ const char Version[] = {
 uint8_t lcd_in_use_flag = 0;
 uint8_t psecond = 0;
 uint16_t minCounter = 0;
+uint16_t tempMinHolder = 0; // this is used for holding the temp value in menu setting
 char strTime[20];
 char tmp[20];
 float PH = 0;
@@ -159,25 +161,25 @@ struct _ir_keypress_mapping {
 
 ir_keypress_mapping[MAX_FUNCTS+1] = {
   { 
-    0x00, IFC_DIAG_IR_RX,      "Debug IR (rx)"                }
+    0x00, IFC_DIAG_IR_RX,      "Debug IR (rx)"                  }
   ,{ 
-    0x00, IFC_MOONLIGHT_ONOFF, "Moonlight"                    }
+    0x00, IFC_MOONLIGHT_ONOFF, "Moonlight"                      }
   ,{ 
-    0x00, IFC_MENU,            "Menu"                         }
+    0x00, IFC_MENU,            "Menu"                           }
   ,{ 
-    0x00, IFC_UP,              "Up Arrow"                     }
+    0x00, IFC_UP,              "Up Arrow"                       }
   ,{ 
-    0x00, IFC_DOWN,            "Down Arrow"                   }
+    0x00, IFC_DOWN,            "Down Arrow"                     }
   ,{ 
-    0x00, IFC_LEFT,            "Left Arrow"                   }
+    0x00, IFC_LEFT,            "Left Arrow"                     }
   ,{ 
-    0x00, IFC_RIGHT,           "Right Arrow"                  }
+    0x00, IFC_RIGHT,           "Right Arrow"                    }
   ,{ 
-    0x00, IFC_OK,              "Confirm/Select"               }
+    0x00, IFC_OK,              "Confirm/Select"                 }
   ,{ 
-    0x00, IFC_CANCEL,          "Back/Cancel"                  }
+    0x00, IFC_CANCEL,          "Back/Cancel"                    }
   ,{ 
-    0x00, IFC_KEY_SENTINEL,    "NULL"                         }
+    0x00, IFC_KEY_SENTINEL,    "NULL"                           }
 };
 
 // menu struct:
@@ -185,6 +187,7 @@ struct _menu_mapping {
   uint8_t pos;
   char description[20];
   uint8_t eepromLoc;
+  uint8_t size;
 }
 
 // Menu
@@ -197,32 +200,32 @@ struct _menu_mapping {
 
 menu_mapping[MENU_OPTIONS] = {
   { 
-    0,  "Clock setup"        , 0                                    }
+    0,  "Clock setup"        , 0                      , 0             }
   ,{ 
-    1,  "IR Diagnose"        , 0                                    }
+    1,  "IR Diagnose"        , 0                      , 0             }
   ,{ 
-    2,  "Remote Learning"    , 0                                    }
+    2,  "Remote Learning"    , 0                      , 0             }
 #ifdef LEDS
   ,{ 
-    3,  "White LED limit"    , EEPROM_WHITE_MAX                     }
+    3,  "White LED limit"    , EEPROM_WHITE_MAX       , 1             }
   ,{ 
-    4,  "Blue LED limit"     , EEPROM_BLUE_MAX                      }
+    4,  "Blue LED limit"     , EEPROM_BLUE_MAX        , 1             }
   ,{ 
-    5,  "Moonlight level"    , EEPROM_MOON_LEVEL                    }
+    5,  "Moonlight level"    , EEPROM_MOON_LEVEL      , 1             }
   ,{ 
-    6,  "White LED start"    , EEPROM_WHITE_START                   }
+    6,  "White LED start"    , EEPROM_WHITE_START     , 2             }
   ,{ 
-    7,  "Blue LED start"     , EEPROM_BLUE_START                    }
+    7,  "Blue LED start"     , EEPROM_BLUE_START      , 2             }
   ,{ 
-    8, "White LED duration"  , EEPROM_WHITE_DURATION                }
+    8, "White LED duration"  , EEPROM_WHITE_DURATION  , 2             }
   ,{ 
-    9, "Blue LED duration"   , EEPROM_BLUE_DURATION                 }
+    9, "Blue LED duration"   , EEPROM_BLUE_DURATION   , 2             }
   ,{ 
-    10, "Moon duration"      , EEPROM_MOON_DURATION                 }
+    10, "Moon duration"      , EEPROM_MOON_DURATION   , 2             }
   ,{ 
-    11, "Channel Delay"      , EEPROM_CHANNEL_DELAY                 }
+    11, "Channel Delay"      , EEPROM_CHANNEL_DELAY   , 2             }
   ,{ 
-    12, "Fade Duration"      , EEPROM_FADE_DURATION                 }
+    12, "Fade Duration"      , EEPROM_FADE_DURATION   , 2             }
 #endif
 };
 
@@ -330,7 +333,7 @@ void loop() {
     //10 - "Moon duration"
     //11 - "Channel Delay"
     //12 - "Fade Duration"
-    Serial.print("MODE 2");
+    Serial.print("MODE 2; ");
     Serial.print("menu_position = ");
     Serial.println(menu_position,DEC);
 #endif
@@ -341,10 +344,10 @@ void loop() {
 #ifdef DEBUG          
           Serial.println("Entering clock setup");         
 #endif
+          lcd.send_string("Use arrows to adjust", LCD_CURS_POS_L2_HOME);
           sprintf(strTime,"%02d:%02d:%02d %02d/%02d/%02d %d",th, tmi, ts, tdm, tmo, ty, tdw);
           update_clock(2,0);   
-          lcd.cursorTo(3,0);
-          lcd.print("HH:MM:SS DD:MM:YY DW");
+          lcd.send_string("HH:MM:SS DD:MM:YY DW",LCD_CURS_POS_L4_HOME);
           first = false;
         }
         set_time();
@@ -369,28 +372,43 @@ void loop() {
       }
     }
     else{
-      //setCurrentMenuOption();   
+      if (first){
+#ifdef DEBUG          
+        Serial.println("Entering setCurrentMenuOption");         
+#endif
+        if (menu_mapping[menu_position].size == 2){
+          lcd.send_string("Value is in minutes", LCD_CURS_POS_L3_HOME);
+          EEPROM_readAnything(menu_mapping[menu_position].eepromLoc, tempMinHolder);
+        }else if (menu_mapping[menu_position].size == 1){
+          lcd.send_string("255 - MAX; 0 - MIN  ", LCD_CURS_POS_L3_HOME);
+          uint8_t temp;
+          EEPROM_readAnything(menu_mapping[menu_position].eepromLoc, temp);
+          tempMinHolder = temp;
+        }
+        lcd.cursorTo(3,0);
+        printMenuValue();
+        first = false;
+      }
+      setCurrentMenuOption(menu_mapping[menu_position].size);   
     }
   }// global_mode == 2
 
-#ifdef DEBUG
+#ifdef DEBUG_CLOCK
   Serial.println("trying to get date and time");
 #endif  
+
   RTC.getDate(&second, &minute, &hour, &dayOfWeek, &dayOfMonth, &month, &year);
-#ifdef DEBUG
+
+#ifdef DEBUG_CLOCK
   Serial.println("got date and time");
   Serial.print("second is ");
   Serial.print(second,DEC);
   Serial.print(" psecond is ");
   Serial.println(psecond,DEC);
-  Serial.println(minute,DEC);
-  Serial.println(hour,DEC);
-  Serial.println(dayOfWeek,DEC);
-  Serial.println(dayOfMonth,DEC);
-  Serial.println(month,DEC);
-  Serial.println(year,DEC);
 #endif
+
   if (psecond != second){
+
 #ifdef DEBUG_CLOCK
     if (!RTC.isRunning()){
       Serial.println("Clock is NOT running");
@@ -583,7 +601,14 @@ void init_components ( void ) {
     EEPROM_writeAnything(EEPROM_FADE_DURATION,     fadeDuration);
     EEPROM_writeAnything(EEPROM_MAGIC, 04);  // this signals that we're whole again ;)
   }
+  readFromEEPROM();
 
+#endif
+}
+
+void readFromEEPROM ( void ){
+
+#ifdef LEDS
   //read settings from EEPROM
   EEPROM_readAnything(EEPROM_BLUE_MAX, blueMax);
   EEPROM_readAnything(EEPROM_WHITE_MAX, whiteMax);
@@ -595,10 +620,9 @@ void init_components ( void ) {
   EEPROM_readAnything(EEPROM_BLUE_START, blueStartMins);
   EEPROM_readAnything(EEPROM_CHANNEL_DELAY, channelDelay);
   EEPROM_readAnything(EEPROM_FADE_DURATION, fadeDuration);
-
 #endif
-}
 
+}
 uint8_t scan_front_button( void ) {
   in_keys = lcd.ReadInputKeys();
   if ( (in_keys & LCD_MCP_INPUT_PINS_MASK ) != LCD_MCP_INPUT_PINS_MASK) {
@@ -1018,7 +1042,6 @@ void menu( void ) {
     lcd.clear();
     RTC.getDate(&ts, &tmi, &th, &tdw, &tdm, &tmo, &ty);
     lcd.send_string(menu_mapping[menu_position].description, LCD_CURS_POS_L1_HOME);
-    lcd.send_string("Use arrows to adjust", LCD_CURS_POS_L2_HOME);
     //EEPROM_readAnything(menu_mapping[menu_position].eepromLoc, sVal);
     global_mode = 2;
     delay (100);
@@ -1238,4 +1261,98 @@ void set_time( void ){
 
 }
 
+/**********************************/
+/****** GENERIG MENU HANDLER ******/
+/**********************************/
+void setCurrentMenuOption ( uint8_t size ) {
+  key = get_input_key();
+  if (key == 0) {
+    return;
+  }
+  // key = OK
+  if (key == ir_keypress_mapping[IFC_OK].key_hex ) {
+    if (size == 2){
+      EEPROM_writeAnything(menu_mapping[menu_position].eepromLoc, tempMinHolder);
+    }else if (size == 1){
+      EEPROM_writeAnything(menu_mapping[menu_position].eepromLoc, (uint8_t)tempMinHolder);
+    }
+    global_mode = 0;
+    readFromEEPROM();
+    lcd.clear();
+    first=true;
+  }
 
+  // key = Up
+  else if (key == ir_keypress_mapping[IFC_UP].key_hex){
+    if (size == 2){
+      if (tempMinHolder < 1440){
+        tempMinHolder++;
+      }
+      else{
+        lcd.send_string("Cannot go over 24hrs", LCD_CURS_POS_L2_HOME);
+        delay(1000);
+        lcd.clear_L2();
+      }
+    }else if (size == 1){
+            if (tempMinHolder < 255){
+        tempMinHolder++;
+      }
+      else{
+        lcd.send_string("Cannot go over 255 ", LCD_CURS_POS_L2_HOME);
+        delay(1000);
+        lcd.clear_L2();
+      }
+    }
+    
+    lcd.cursorTo(3,0);
+    printMenuValue();
+  }
+
+  // key = Down
+  else if (key == ir_keypress_mapping[IFC_DOWN].key_hex){
+
+    if (tempMinHolder > 0){
+      tempMinHolder--;
+    }
+    else{
+      lcd.send_string("Cannot go under 0  ", LCD_CURS_POS_L2_HOME);
+      delay(1000);
+      lcd.clear_L2();
+    }
+    lcd.cursorTo(3,0);
+    printMenuValue();
+  }
+
+  // key = Left
+  else if (key == ir_keypress_mapping[IFC_LEFT].key_hex){
+
+  }
+
+  // key = Right
+  else if (key == ir_keypress_mapping[IFC_RIGHT].key_hex){ 
+
+  }
+
+  // key = Cancel
+  else if (key == ir_keypress_mapping[IFC_CANCEL].key_hex){
+    lcd.clear();
+    global_mode = 0;
+    delay (100);
+  } 
+
+  delay(100);
+  irrecv.resume(); // we just consumed one key; 'start' to receive the next value
+}
+
+
+void printMenuValue(){
+  if (menu_mapping[menu_position].size == 2){
+      uint8_t hr = tempMinHolder/60;
+      uint8_t mn = tempMinHolder - (hr*60);
+      sprintf(tmp,"%02u   (%02uh %02um)   ",tempMinHolder, hr, mn);
+    }else if (menu_mapping[menu_position].size == 1){
+      uint8_t pct = (tempMinHolder/2.55);
+      sprintf(tmp,"%02u   (%02u%%)        ",tempMinHolder, pct);
+    }
+  lcd.print(tmp);
+}
