@@ -15,49 +15,59 @@
 //              SETUP
 //
 //**********************************
-#define PH_READ_PIN           3     // analog pin to poll PH
-#define PWM_BACKLIGHT_PIN     8     // pwm-controlled LED backlight
-#define IR_PIN                6     // Sensor data-out pin, wired direct
-#define SplashScrnTime        2     //  Splash Screen display time, seconds  
 
+//remove coment to enable SERIAL debug mode
+#define DEBUG           
+//#define DEBUG_LED
 
 // select one of the input methods
-#define IR_INPUT              1     // used this if you are going to have IR input
-//#define KEYPAD_INPUT          1     // use this if you are going to have a physical keypad
-
-uint8_t bluePins[]      = {
-  5, 9};      // pwm pins for blues
-uint8_t whitePins[]     = {
-  10, 11};    // pwm pins for whites
-
-uint8_t blueChannels    =        2;    // how many PWMs for blues (count from above)
-uint8_t whiteChannels   =        2;    // how many PWMs for whites (count from above)
+#define IR_INPUT                    // used this if you are going to have IR input
+#define IR_PIN                 6     // Sensor data-out pin, wired direct
+//#define KEYPAD_INPUT               // use this if you are going to have a physical keypad
 
 
-uint16_t blueStartMins    =        690;  // minute to start blues. Change this to the number of minutes past
-//    midnight you want the blues to start.
+#define LEDS                       // comment this out if you don't have LEDs
 
-uint16_t whiteStartMins   =        750;  // minute to start whites. Same as above.
-uint16_t bluePhotoPeriod  =        600;  // photoperiod in minutes, blues. Change this to alter the total
+
+#define PH_READ_PIN            3     // analog pin to poll PH
+#define PWM_BACKLIGHT_PIN      8     // pwm-controlled LED backlight
+#define SplashScrnTime         2     //  Splash Screen display time, seconds  
+
+
+//ignore these if you don't use LEDs
+uint8_t bluePins[]        =   { 
+  5, 9};  // pwm pins for blues
+
+uint8_t whitePins[]       = { 
+  10, 11};  // pwm pins for whites
+
+uint8_t blueChannels      =         2;  // how many PWMs for blues (count from above)
+
+uint8_t whiteChannels     =         2;  // how many PWMs for whites (count from above)
+
+uint16_t blueStartMins    =       690;  // minute to start blues. Change this to the number of minutes past
+// midnight you want the blues to start.
+
+uint16_t whiteStartMins   =       750;  // minute to start whites. Same as above.
+
+uint16_t bluePhotoPeriod  =       600;  // photoperiod in minutes, blues. Change this to alter the total
 // photoperiod for blues.
 
-uint16_t whitePhotoPeriod =        360;  // photoperiod in minutes, whites. Same as above.
-uint16_t fadeDuration     =        120;   // duration of the fade on and off for sunrise and sunset. Change
-//    this to alter how long the fade lasts.
+uint16_t whitePhotoPeriod =       360;  // photoperiod in minutes, whites. Same as above.
 
+uint16_t fadeDuration     =       120;  // duration of the fade on and off for sunrise and sunset. Change
+// this to alter how long the fade lasts.
 
-uint8_t moonLevel       =        4;    // level of blues for moonlights
-uint16_t moonDuration     =        60;   // duration of moonlights
-uint8_t blueMax         =        255;  // max intensity for blues. Change if you want to limit max intensity.
-uint8_t whiteMax        =        255;  // max intensity for whites. Same as above.
-uint16_t channelDelay     =        0;    // this sets the delay in minutes between strings
+uint8_t moonLevel         =         4;  // level of blues for moonlights
+
+uint16_t moonDuration     =        60;  // duration of moonlights
+
+uint8_t blueMax           =       255;  // max intensity for blues. Change if you want to limit max intensity.
+
+uint8_t whiteMax          =       255;  // max intensity for whites. Same as above.
+uint16_t channelDelay     =         0;  // this sets the delay in minutes between strings
 // of the same color for simulating directional light.
 // 0 means all will ramp up at the same time. 
-
-uint8_t backlight_min   =        255;
-uint8_t backlight_max   =        255;
-
-
 //**********************************
 //
 //            END SETUP
@@ -69,7 +79,7 @@ uint8_t backlight_max   =        255;
 const char Title[]   = { 
   "Hydra-THZ" };
 const char Version[] = {  
-  "0.02" };
+  "0.03" };
 
 uint8_t lcd_in_use_flag = 0;
 uint8_t psecond = 0;
@@ -97,13 +107,7 @@ long key;
 uint8_t ms,ls, ts, tmi, th, tdw, tdm, tmo, ty;
 decode_results results;
 uint8_t menu_position = 0;
-
 boolean first = true;
-
-#define MENU_OPTIONS 15
-/*
- * arduino (not atmel!) pins for physical computing i/o
- */
 
 /*
  * IFC = internal function codes
@@ -122,43 +126,26 @@ boolean first = true;
 #define IFC_CANCEL                  7   // Cancel/back/exit
 #define IFC_MOONLIGHT_ONOFF         8   // Moonlight toggle
 
-#ifdef NUMBER_KEYS
-#define IFC_KEY_1                   9
-#define IFC_KEY_2                   10
-#define IFC_KEY_3                   11
-#define IFC_KEY_4                   12
-#define IFC_KEY_5                   13
-#define IFC_KEY_6                   14
-#define IFC_KEY_7                   15
-#define IFC_KEY_8                   16
-#define IFC_KEY_9                   17
-#define IFC_KEY_0                   18
-#endif
-
 // has to be the last entry in this list
 #define IFC_KEY_SENTINEL            9   // this must always be the last in the list
 #define MAX_FUNCTS                  IFC_KEY_SENTINEL
 
 #define EEPROM_MAGIC              0
 
-
+#ifdef LEDS
 #define EEPROM_WHITE_LVL          1    // white LED brightness
 #define EEPROM_BLUE_LVL           2    // blue LED brightness
-
-//#define EEPROM_BACKLIGHT_LEVEL    3    // current working level
-#define EEPROM_BACKLIGHT_MIN      4    // our 'dimest' setting
-#define EEPROM_BACKLIGHT_MAX      5    // our 'brightest' setting
-#define EEPROM_BLUE_MAX           6    // Cap for blue light
-#define EEPROM_WHITE_MAX          7    // Cap for white light
-#define EEPROM_WHITE_DURATION     8    // 2 bytes; how long to keep whites on
-#define EEPROM_BLUE_DURATION      10   // 2 bytes; how long to keep blues on
-#define EEPROM_MOON_LEVEL         12   // level of moon lights
-#define EEPROM_MOON_DURATION      13   // 2 bytes; Duration of moon lights
-#define EEPROM_BLUE_START         15   // 2 bytes; Starting time for blues
-#define EEPROM_WHITE_START        17   // 2 bytes; Starting time for whites
-#define EEPROM_CHANNEL_DELAY      19   // 2 bytes; Delay between channels
-#define EEPROM_FADE_DURATION      21   // 2 bytes; Suration of sunrise/sunset
-
+#define EEPROM_BLUE_MAX           3    // Cap for blue light
+#define EEPROM_WHITE_MAX          4    // Cap for white light
+#define EEPROM_WHITE_DURATION     5    // 2 bytes; how long to keep whites on
+#define EEPROM_BLUE_DURATION      7   // 2 bytes; how long to keep blues on
+#define EEPROM_MOON_LEVEL         9   // level of moon lights
+#define EEPROM_MOON_DURATION      10   // 2 bytes; Duration of moon lights
+#define EEPROM_BLUE_START         12   // 2 bytes; Starting time for blues
+#define EEPROM_WHITE_START        14   // 2 bytes; Starting time for whites
+#define EEPROM_CHANNEL_DELAY      16   // 2 bytes; Delay between channels
+#define EEPROM_FADE_DURATION      18   // 2 bytes; Suration of sunrise/sunset
+#endif
 
 // this is a temporary holding area that we write to, key by key; and then dump all at once when the user finishes the last one
 long ir_key_bank1[MAX_FUNCTS+1];
@@ -172,47 +159,25 @@ struct _ir_keypress_mapping {
 
 ir_keypress_mapping[MAX_FUNCTS+1] = {
   { 
-    0x00, IFC_DIAG_IR_RX,      "Debug IR (rx)"              }
+    0x00, IFC_DIAG_IR_RX,      "Debug IR (rx)"                }
   ,{ 
-    0x00, IFC_MOONLIGHT_ONOFF, "Moonlight"                  }
+    0x00, IFC_MOONLIGHT_ONOFF, "Moonlight"                    }
   ,{ 
-    0x00, IFC_MENU,            "Menu"                       }
+    0x00, IFC_MENU,            "Menu"                         }
   ,{ 
-    0x00, IFC_UP,              "Up Arrow"                   }
+    0x00, IFC_UP,              "Up Arrow"                     }
   ,{ 
-    0x00, IFC_DOWN,            "Down Arrow"                 }
+    0x00, IFC_DOWN,            "Down Arrow"                   }
   ,{ 
-    0x00, IFC_LEFT,            "Left Arrow"                 }
+    0x00, IFC_LEFT,            "Left Arrow"                   }
   ,{ 
-    0x00, IFC_RIGHT,           "Right Arrow"                }
+    0x00, IFC_RIGHT,           "Right Arrow"                  }
   ,{ 
-    0x00, IFC_OK,              "Confirm/Select"             }
+    0x00, IFC_OK,              "Confirm/Select"               }
   ,{ 
-    0x00, IFC_CANCEL,          "Back/Cancel"                }
-#ifdef NUMBER_KEYS
+    0x00, IFC_CANCEL,          "Back/Cancel"                  }
   ,{ 
-    0x00, IFC_KEY_1,           "Num 1"                      }
-  ,{ 
-    0x00, IFC_KEY_2,           "Num 2"                      }
-  ,{ 
-    0x00, IFC_KEY_3,           "Num 3"                      }
-  ,{ 
-    0x00, IFC_KEY_4,           "Num 4"                      }
-  ,{ 
-    0x00, IFC_KEY_5,           "Num 5"                      }
-  ,{ 
-    0x00, IFC_KEY_6,           "Num 6"                      }
-  ,{ 
-    0x00, IFC_KEY_7,           "Num 7"                      }
-  ,{ 
-    0x00, IFC_KEY_8,           "Num 8"                      }
-  ,{ 
-    0x00, IFC_KEY_9,           "Num 9"                      }
-  ,{ 
-    0x00, IFC_KEY_0,           "Num 0"                      }
-#endif
-  ,{ 
-    0x00, IFC_KEY_SENTINEL,    "NULL"                       }
+    0x00, IFC_KEY_SENTINEL,    "NULL"                         }
 };
 
 // menu struct:
@@ -223,37 +188,42 @@ struct _menu_mapping {
 }
 
 // Menu
+
+#ifdef LEDS
+#define MENU_OPTIONS 13
+#else
+#define MENU_OPTIONS 3
+#endif
+
 menu_mapping[MENU_OPTIONS] = {
   { 
-    0,  "Backlight min"      , EEPROM_BACKLIGHT_MIN               }
+    0,  "Clock setup"        , 0                                    }
   ,{ 
-    1,  "Backlight max"      , EEPROM_BACKLIGHT_MAX               }
+    1,  "IR Diagnose"        , 0                                    }
   ,{ 
-    2,  "Clock setup"        , 0                                  }
+    2,  "Remote Learning"    , 0                                    }
+#ifdef LEDS
   ,{ 
-    3,  "IR Diagnose"        , 0                                  }
+    3,  "White LED limit"    , EEPROM_WHITE_MAX                     }
   ,{ 
-    4,  "Remote Learning"    , 0                                  }
+    4,  "Blue LED limit"     , EEPROM_BLUE_MAX                      }
   ,{ 
-    5,  "White LED limit"    , EEPROM_WHITE_MAX                   }
+    5,  "Moonlight level"    , EEPROM_MOON_LEVEL                    }
   ,{ 
-    6,  "Blue LED limit"     , EEPROM_BLUE_MAX                    }
+    6,  "White LED start"    , EEPROM_WHITE_START                   }
   ,{ 
-    7,  "Moonlight level"    , EEPROM_MOON_LEVEL                  }
+    7,  "Blue LED start"     , EEPROM_BLUE_START                    }
   ,{ 
-    8,  "White LED start"    , EEPROM_WHITE_START                 }
+    8, "White LED duration"  , EEPROM_WHITE_DURATION                }
   ,{ 
-    9,  "Blue LED start"     , EEPROM_BLUE_START                  }
+    9, "Blue LED duration"   , EEPROM_BLUE_DURATION                 }
   ,{ 
-    10, "White LED duration" , EEPROM_WHITE_DURATION              }
+    10, "Moon duration"      , EEPROM_MOON_DURATION                 }
   ,{ 
-    11, "Blue LED duration"  , EEPROM_BLUE_DURATION               }
+    11, "Channel Delay"      , EEPROM_CHANNEL_DELAY                 }
   ,{ 
-    12, "Moon duration"      , EEPROM_MOON_DURATION               }
-  ,{ 
-    13, "Channel Delay"      , EEPROM_CHANNEL_DELAY               }
-  ,{ 
-    14, "Fade Duration"      , EEPROM_FADE_DURATION               }
+    12, "Fade Duration"      , EEPROM_FADE_DURATION                 }
+#endif
 };
 
 
@@ -262,7 +232,9 @@ MCP23XX relay_mcp = MCP23XX(RELAY_MCP_DEV_ADDR);
 
 LCDI2C4Bit lcd = LCDI2C4Bit(LCD_MCP_DEV_ADDR, LCD_PHYS_LINES, LCD_PHYS_ROWS, PWM_BACKLIGHT_PIN);
 
+#ifdef IR_INPUT
 IRrecv irrecv(IR_PIN);
+#endif
 
 I2CRelay relay = I2CRelay();
 
@@ -284,15 +256,32 @@ template <class T> uint16_t EEPROM_readAnything(uint16_t ee, T& value)
   return i;
 }
 
-
-
-
 void setup() {
-  //Serial.begin(9600);
+#ifdef DEBUG
+  Serial.begin(9600);
+#endif
+
   init_components();
   signon_msg();
-  //      pinMode(PWM_BACKLIGHT_PIN, OUTPUT);
-  //      digitalWrite(PWM_BACKLIGHT_PIN,HIGH);
+  // check if clock is running
+  if (!RTC.isRunning()){
+#ifdef DEBUG
+    Serial.print("Clock is NOT running");
+#endif    
+    //  set the date
+    RTC.setDate(second, minute, hour, dayOfWeek, dayOfMonth, month, year);
+
+    //    menu_position = 0;
+    //    global_mode = 2; 
+
+  }
+  else{
+#ifdef DEBUG
+    Serial.println("Clock is running");
+#endif 
+  }
+
+  //fix this later
   if (scan_front_button() == 1) {
     //enter_setup_mode();
   }
@@ -319,16 +308,39 @@ void loop() {
   }//global_mode == 0
 
   else if (global_mode == 1) {       // Main Menu
+#ifdef DEBUG
     Serial.println("MODE 1");
+#endif
     menu();
   }
 
   else if (global_mode == 2) {       // Setting a value
-    //Serial.println("MODE 2");
+#ifdef DEBUG  
+    // menu positions
+    // 0 - "Clock setup" 
+    // 1 - "IR Diagnose"
+    // 2 - "Remote Learning"
+    // 3 - "White LED limit"
+    // 4 - "Blue LED limit"
+    // 5 - "Moonlight level"
+    // 6 - "White LED start"
+    // 7 - "Blue LED start" 
+    // 8 - "White LED duration"
+    // 9 - "Blue LED duration"
+    //10 - "Moon duration"
+    //11 - "Channel Delay"
+    //12 - "Fade Duration"
+    Serial.print("MODE 2");
+    Serial.print("menu_position = ");
+    Serial.println(menu_position,DEC);
+#endif
     // if the menu item is not a simple uint8_t value
     if ( menu_mapping[menu_position].eepromLoc == 0 ){
-      if ( menu_mapping[menu_position].pos == 2 ){ //set clock
+      if ( menu_mapping[menu_position].pos == 0 ){ //set clock
         if (first){
+#ifdef DEBUG          
+          Serial.println("Entering clock setup");         
+#endif
           sprintf(strTime,"%02d:%02d:%02d %02d/%02d/%02d %d",th, tmi, ts, tdm, tmo, ty, tdw);
           update_clock(2,0);   
           lcd.cursorTo(3,0);
@@ -337,10 +349,22 @@ void loop() {
         }
         set_time();
       }
-      else if ( menu_mapping[menu_position].pos == 3 ) {
+      else if ( menu_mapping[menu_position].pos == 1 ) {
+        if (first){
+#ifdef DEBUG          
+          Serial.println("Entering IR Diagnlose");         
+#endif
+          first = false;
+        }
         diagnose_IR();
       }
-      else if ( menu_mapping[menu_position].pos == 4 ) {
+      else if ( menu_mapping[menu_position].pos == 2 ) {
+        if (first){
+#ifdef DEBUG          
+          Serial.println("Entering IR Learning");         
+#endif
+          first = false;
+        }
         enter_setup_mode();
       }
     }
@@ -349,9 +373,33 @@ void loop() {
     }
   }// global_mode == 2
 
+#ifdef DEBUG
+  Serial.println("trying to get date and time");
+#endif  
   RTC.getDate(&second, &minute, &hour, &dayOfWeek, &dayOfMonth, &month, &year);
-
+#ifdef DEBUG
+  Serial.println("got date and time");
+  Serial.print("second is ");
+  Serial.print(second,DEC);
+  Serial.print(" psecond is ");
+  Serial.println(psecond,DEC);
+  Serial.println(minute,DEC);
+  Serial.println(hour,DEC);
+  Serial.println(dayOfWeek,DEC);
+  Serial.println(dayOfMonth,DEC);
+  Serial.println(month,DEC);
+  Serial.println(year,DEC);
+#endif
   if (psecond != second){
+#ifdef DEBUG_CLOCK
+    if (!RTC.isRunning()){
+      Serial.println("Clock is NOT running");
+    }
+    else{
+      Serial.println("Clock is running");
+    }
+#endif 
+
     //Serial.println("tick");
     psecond = second;
     run_sec();
@@ -369,7 +417,11 @@ void run_sec( void ){ // runs every second
     update_ph(2,0);
     update_clock(3,3);
   }
+
+#ifdef LEDS
   update_leds();
+#endif
+
   send_to_slave();
 }
 
@@ -398,6 +450,7 @@ void getPH( void ){
   PH = sum/15/46;
 }
 
+#ifdef LEDS
 void update_leds( void ){
   uint8_t i;
   uint8_t ledVal;
@@ -423,12 +476,6 @@ void update_leds( void ){
   }
 }
 
-void send_to_slave( void ){
-  FUnion._fval = PH;
-  Wire.beginTransmission(4); // transmit to device #4
-  Wire.send(FUnion._b,4);              // sends one byte  
-  Wire.endTransmission();    // stop transmitting
-}
 
 uint8_t setLed(uint16_t mins,    // current time in minutes
 uint8_t ledPin,  // pin for this channel of LEDs
@@ -437,6 +484,7 @@ uint16_t period,  // photoperiod for this channel of LEDs
 uint16_t fade,    // fade duration for this channel of LEDs
 uint8_t ledMax   // max value for this channel
 )  {
+#ifdef DEBUG_LED
   Serial.print("current time: ");
   Serial.println(mins);
   Serial.print("Pin: ");
@@ -449,7 +497,7 @@ uint8_t ledMax   // max value for this channel
   Serial.println(fade);
   Serial.print("max value for LED: ");
   Serial.println(ledMax, DEC);
-
+#endif
   uint8_t ledVal = 0;
   if (mins <= start || mins > start + period)  {
     ledVal = 0;
@@ -464,12 +512,22 @@ uint8_t ledMax   // max value for this channel
     ledVal = map(mins - start - period + fade, 0, fade, ledMax, 0);
   }
 
+#ifdef DEBUG_LED
   Serial.print("Setting LED to: ");
   Serial.println(ledVal, DEC);
+#endif  
   analogWrite(ledPin, ledVal);
 
   return ledVal;  
 
+}
+#endif
+
+void send_to_slave( void ){
+  FUnion._fval = PH;
+  Wire.beginTransmission(4); // transmit to device #4
+  Wire.send(FUnion._b,4);              // sends one byte  
+  Wire.endTransmission();    // stop transmitting
 }
 
 
@@ -477,8 +535,6 @@ void  signon_msg( void ) {
   long start_time = millis();
 
   lcd.clear();
-  lcd.lcd_fade_backlight_on();
-  lcd.backLight(backlight_max);   // full bright
 
   lcd.send_string(Title,   LCD_CURS_POS_L1_HOME);
   lcd.send_string(Version, LCD_CURS_POS_L2_HOME);
@@ -494,29 +550,27 @@ void init_components ( void ) {
   //start LCD
   lcd.init();
   lcd.SetInputKeysMask(LCD_MCP_INPUT_PINS_MASK);
-  lcd.set_backlight_levels( backlight_min ,backlight_max);
-  lcd.lcd_fade_backlight_on();
 
+#ifdef IR_INPUT
   //start IR sensor
   irrecv.enableIRIn();
 
-  //set the date
-  RTC.setDate(second, minute, hour, dayOfWeek, dayOfMonth, month, year);
 
   //read remote keys from EEPROM  
   for (i=0; i<=MAX_FUNCTS; i++) {
     EEPROM_readAnything(40 + i*sizeof(key), key);
     ir_keypress_mapping[i].key_hex = key;
   }
+#endif
 
+
+#ifdef LEDS
   //check if eeprom is good and if not set defaults
-  if (EEPROM.read(EEPROM_MAGIC) != 01) {
+  if (EEPROM.read(EEPROM_MAGIC) != 04) {
     // init all of EEPROM area
 
     EEPROM_writeAnything(EEPROM_WHITE_LVL,         0);
     EEPROM_writeAnything(EEPROM_BLUE_LVL,          0);
-    EEPROM_writeAnything(EEPROM_BACKLIGHT_MIN,     backlight_min);
-    EEPROM_writeAnything(EEPROM_BACKLIGHT_MAX,     backlight_max);
     EEPROM_writeAnything(EEPROM_BLUE_MAX,          blueMax);
     EEPROM_writeAnything(EEPROM_WHITE_MAX,         whiteMax);
     EEPROM_writeAnything(EEPROM_WHITE_DURATION,    whitePhotoPeriod);
@@ -527,12 +581,10 @@ void init_components ( void ) {
     EEPROM_writeAnything(EEPROM_BLUE_START,        blueStartMins);
     EEPROM_writeAnything(EEPROM_CHANNEL_DELAY,     channelDelay);
     EEPROM_writeAnything(EEPROM_FADE_DURATION,     fadeDuration);
-    EEPROM_writeAnything(EEPROM_MAGIC, 01);  // this signals that we're whole again ;)
+    EEPROM_writeAnything(EEPROM_MAGIC, 04);  // this signals that we're whole again ;)
   }
 
   //read settings from EEPROM
-  EEPROM_readAnything(EEPROM_BACKLIGHT_MIN, backlight_min);
-  EEPROM_readAnything(EEPROM_BACKLIGHT_MAX, backlight_max);
   EEPROM_readAnything(EEPROM_BLUE_MAX, blueMax);
   EEPROM_readAnything(EEPROM_WHITE_MAX, whiteMax);
   EEPROM_readAnything(EEPROM_WHITE_DURATION, whitePhotoPeriod);
@@ -544,6 +596,7 @@ void init_components ( void ) {
   EEPROM_readAnything(EEPROM_CHANNEL_DELAY, channelDelay);
   EEPROM_readAnything(EEPROM_FADE_DURATION, fadeDuration);
 
+#endif
 }
 
 uint8_t scan_front_button( void ) {
@@ -673,7 +726,7 @@ done_learn_mode:
 
     delay(50);
   }
-
+  first = true;
   delay(1000);
 
   lcd.clear();
@@ -690,6 +743,8 @@ long get_input_key( void ){
 
 }
 
+
+#ifdef IR_INPUT
 long  get_IR_key( void ) {
   long my_result;
   long last_value = results.value;   // save the last one in case the new one is a 'repeat code'
@@ -771,6 +826,64 @@ void ir_key_dump( void ) {
   }
 }
 
+void diagnose_IR( void ){
+
+  /*
+   * we got a valid IR start pulse! fetch the keycode, now.
+   */
+
+  key = get_input_key();
+  if (key == 0) {
+    return;
+  }
+  lcd.clear();
+  lcd.send_string(menu_mapping[menu_position].description, LCD_CURS_POS_L1_HOME);
+  delay(50);
+
+  if (results.decode_type == UNKNOWN) {
+    //Serial.println("Could not decode IR message");
+    lcd.send_string("UNKNOWN: (no hex)", LCD_CURS_POS_L2_HOME);
+  } 
+
+  else {
+    if (results.decode_type == NEC) {
+      lcd.send_string("NEC: ", LCD_CURS_POS_L2_HOME);
+    } 
+
+    else if (results.decode_type == SONY) {
+      lcd.send_string("SONY: ", LCD_CURS_POS_L2_HOME);
+    } 
+
+    else if (results.decode_type == RC5) {
+      lcd.send_string("RC5: ", LCD_CURS_POS_L2_HOME);
+    } 
+
+    else if (results.decode_type == RC6) {
+      lcd.send_string("RC6: ", LCD_CURS_POS_L2_HOME);
+    }
+
+
+    // print the value!
+    lcd_print_long_hex(results.value);
+
+  }
+  // 'diag mode' key exits
+  if (key == ir_keypress_mapping[IFC_CANCEL].key_hex) {
+    global_mode = 0;  // we're done in this edit mode
+    /*
+     * redraw the screen in '0' (main) mode
+     */
+    lcd.clear();
+    first = true;
+    delay (200); //Debounce switch
+  }
+
+  delay(100);
+  irrecv.resume(); // we just consumed one key; 'start' to receive the next value
+
+}
+#endif
+
 void lcd_print_long_hex(long p_value) {
 
   uint8_t Byte1 = ((p_value >> 0) & 0xFF);
@@ -835,22 +948,38 @@ void onKeyPress( void )
 
   // key = UP
   else if (key == ir_keypress_mapping[IFC_UP].key_hex) {
-    //do something
+#ifdef LEDS
+    if (blueMax < 255){
+      blueMax++;
+    }
+#endif
   }
 
   // key = DOWN
   else if (key == ir_keypress_mapping[IFC_DOWN].key_hex) {
-    //do something
+#ifdef LEDS
+    if (blueMax > 0){
+      blueMax--;
+    }
+#endif
   }
 
   // key = LEFT
   else if (key == ir_keypress_mapping[IFC_LEFT].key_hex) {
-    //do something
+#ifdef LEDS
+    if (whiteMax < 255){
+      whiteMax--;
+    }
+#endif
   }
 
   // key = RIGHT
   else if (key == ir_keypress_mapping[IFC_RIGHT].key_hex) {
-    //do something
+#ifdef LEDS
+    if (whiteMax > 0){
+      whiteMax++;
+    }
+#endif
   }
 
   // key = OK
@@ -1109,59 +1238,4 @@ void set_time( void ){
 
 }
 
-void diagnose_IR( void ){
-
-  /*
-   * we got a valid IR start pulse! fetch the keycode, now.
-   */
-
-  key = get_input_key();
-  if (key == 0) {
-    return;
-  }
-  lcd.clear();
-  lcd.send_string(menu_mapping[menu_position].description, LCD_CURS_POS_L1_HOME);
-  delay(50);
-
-  if (results.decode_type == UNKNOWN) {
-    //Serial.println("Could not decode IR message");
-    lcd.send_string("UNKNOWN: (no hex)", LCD_CURS_POS_L2_HOME);
-  } 
-
-  else {
-    if (results.decode_type == NEC) {
-      lcd.send_string("NEC: ", LCD_CURS_POS_L2_HOME);
-    } 
-
-    else if (results.decode_type == SONY) {
-      lcd.send_string("SONY: ", LCD_CURS_POS_L2_HOME);
-    } 
-
-    else if (results.decode_type == RC5) {
-      lcd.send_string("RC5: ", LCD_CURS_POS_L2_HOME);
-    } 
-
-    else if (results.decode_type == RC6) {
-      lcd.send_string("RC6: ", LCD_CURS_POS_L2_HOME);
-    }
-
-
-    // print the value!
-    lcd_print_long_hex(results.value);
-
-  }
-  // 'diag mode' key exits
-  if (key == ir_keypress_mapping[IFC_CANCEL].key_hex) {
-    global_mode = 0;  // we're done in this edit mode
-    /*
-     * redraw the screen in '0' (main) mode
-     */
-    lcd.clear();
-    delay (200); //Debounce switch
-  }
-
-  delay(100);
-  irrecv.resume(); // we just consumed one key; 'start' to receive the next value
-
-}
 
