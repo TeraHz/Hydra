@@ -8,6 +8,7 @@
 #include "mcp23xx.h"
 #include "IRremote.h"
 #include "I2CRelay.h"
+#include "Hydra.h"
 
 
 //**********************************
@@ -240,24 +241,6 @@ IRrecv irrecv(IR_PIN);
 #endif
 
 I2CRelay relay = I2CRelay();
-
-template <class T> uint16_t EEPROM_writeAnything(uint16_t ee, const T& value)
-{
-  const byte* p = (const byte*)(const void*)&value;
-  uint16_t i;
-  for (i = 0; i < sizeof(value); i++)
-    EEPROM.write(ee++, *p++);
-  return i;
-}
-
-template <class T> uint16_t EEPROM_readAnything(uint16_t ee, T& value)
-{
-  byte* p = (byte*)(void*)&value;
-  uint16_t i;
-  for (i = 0; i < sizeof(value); i++)
-    *p++ = EEPROM.read(ee++);
-  return i;
-}
 
 void setup() {
 #ifdef DEBUG
