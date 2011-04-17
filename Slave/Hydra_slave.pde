@@ -8,34 +8,33 @@
  *
  */
 #include <Wire.h>
-#include<stdlib.h>
+#include <stdlib.h>
 #include "etherShield.h"
 #include "OneWire.h"
 #include "DallasTemperature.h"
 
+//#define DEBUG 0
 // ** Local Network Setup **
 // Please modify the following lines. mac and ip have to be unique
 // in your local area network. You can not have the same numbers in
 // two devices:
-static uint8_t mymac[6] = { 
-  0x00,0x1c,0x42,0x00,0x00,0x10};
+static uint8_t mymac[6] = { 0x00,0x1c,0x42,0x00,0x00,0x15};
 
 // how did I get the mac addr? Translate the first 3 numbers into ascii is: TUX
 // The IP address of the arduino.
-static uint8_t myip[4] = {
-  192,168,1,127};
+static uint8_t myip[4] = {192,168,1,128};
 
 // Default gateway. The ip address of your DSL/Cable router.
-static uint8_t gwip[4] = {
-  192,168,1,1};
+static uint8_t gwip[4] = {192,168,1,1};
 
 // IP address of the host running php script (IP of the first portion of the URL):
-static uint8_t webip[4] = {
-  69,163,220,144};
+static uint8_t webip[4] = { 184, 106, 153, 149 }; // ThingSpeak IP Address: 184.106.153.149
+   
+#define THINGSPEAK_KEY "XXXXXXXXXXXXXX"
 
 // The name of the virtual host which you want to contact at webip (hostname of the first portion of the URL):
-#define WEB_VHOST "somehost.com"
-#define WEBURL "/storedata.php"
+#define WEB_VHOST "api.thingspeak.com"
+#define WEBURL "/update?key="THINGSPEAK_KEY
 
 // End of configuration 
 
@@ -157,21 +156,29 @@ uint16_t print_webpage(uint8_t *buf)
 // do somthing here to check all was OK.
 void browserresult_callback(uint8_t statuscode,uint16_t datapos){
   if (statuscode==0){
+#ifdef DEBUG
     Serial.println("HTTP OK");
+#endif
     web_client_sendok++;
   }
+#ifdef DEBUG
   else{
     Serial.print("HTTP status code:");
     Serial.println(statuscode, DEC);
   }
+#endif
   // clear pending state at sucessful contact with the
   // web server even if account is expired:
   if (start_web_client==2) start_web_client=3;
 }
 // Perform setup on ethernet and oneWire
 void setup(){
+  
+#ifdef DEBUG
   Serial.begin(19200);
   Serial.println("Let's do it!");
+#endif
+
   Wire.begin(4);                // join i2c bus with address #4
   Wire.onReceive(receiveEvent); // register event
   // initialize enc28j60
@@ -225,16 +232,17 @@ void loop(){
         //        my_temp2 = read_value(buffer2, 2);//sump
         //        my_temp2 = read_value(buffer3, 3);//DT
         dtostrf(PH,4,2,buffer4);
-
+#ifdef DEBUG
         Serial.print("PH: "); 
         Serial.println(buffer4);
+#endif
 
         sensors.requestTemperatures();
         dtostrf(printData(RoomThermometer),4,2,buffer1);
         dtostrf(printData(DTThermometer),4,2,buffer3);
         dtostrf(printData(SumpThermometer),4,2,buffer2);
 
-        sprintf( statusstr, "?p1=%s&p2=%s&p3=%s&p4=%s", buffer1, buffer2, buffer3, buffer4 );
+        sprintf( statusstr, "&field1=%s&field2=%s&field3=%s", buffer4, buffer2, buffer3);
         es.ES_client_set_wwwip(webip);
         es.ES_client_browse_url(PSTR(WEBURL),statusstr,PSTR(WEB_VHOST), &browserresult_callback);
         start_web_client=2;
@@ -264,10 +272,12 @@ void printAddress(DeviceAddress deviceAddress)
 float printTemperature(DeviceAddress deviceAddress)
 {
   float tempC = sensors.getTempC(deviceAddress);
+#ifdef DEBUG
   Serial.print("Temp C: ");
   Serial.print(tempC);
   Serial.print(" Temp F: ");
   Serial.print(DallasTemperature::toFahrenheit(tempC));
+#endif
   return tempC;
 }
 
@@ -275,16 +285,22 @@ float printTemperature(DeviceAddress deviceAddress)
 float printData(DeviceAddress deviceAddress)
 {
   float tmp;
+#ifdef DEBUG
   Serial.print("Device Address: ");
   printAddress(deviceAddress);
   Serial.print(" ");
+#endif
   tmp = printTemperature(deviceAddress);
+#ifdef DEBUG
   Serial.println();
+#endif
   return tmp;
 }
 void receiveEvent(int howMany)
 {
+#ifdef DEBUG
   Serial.println("Calling receiveEvent");
+#endif
   int i = 0;
   while(Wire.available())    // slave may send less than requested
   {
@@ -298,7 +314,3 @@ void receiveEvent(int howMany)
 
   PH = FUnion._fval;
 }
-
-
-
-
