@@ -9,6 +9,9 @@
 #include "IRremote.h"
 #include "I2CRelay.h"
 #include "Hydra.h"
+#include "OneWire.h"
+#include "DallasTemperature.h"
+
 
 
 //**********************************
@@ -19,22 +22,26 @@
 
 //remove coment to enable various debug modes
 //#define DEBUG       //general    
-//#define DEBUG_LED   //extra for LEDs
+//#define DEBUG_LED   //extra for LEDs    
+//#define DEBUG_IR    //extra for IR
 //#define DEBUG_CLOCK //extra for RTC
 
 // select one of the input methods
 #define IR_INPUT                    // used this if you are going to have IR input
-#define IR_PIN                 6     // Sensor data-out pin, wired direct
+#define IR_PIN                 6    // Sensor data-out pin, wired direct
 //#define KEYPAD_INPUT               // use this if you are going to have a physical keypad
 
 
-#define LEDS                       // comment this out if you don't have LEDs
+#define LEDS                        // comment this out if you don't have LEDs
 
 
-#define PH_READ_PIN            3     // analog pin to poll PH
-#define PWM_BACKLIGHT_PIN      8     // pwm-controlled LED backlight
-#define SplashScrnTime         2     //  Splash Screen display time, seconds  
+#define PH_READ_PIN            3    // analog pin to poll PH
+#define PWM_BACKLIGHT_PIN      8    // pwm-controlled LED backlight
+#define SplashScrnTime         2    //  Splash Screen display time, seconds  
 
+
+#define ONE_WIRE_BUS 2
+#define TEMPERATURE_PRECISION 10  
 
 //ignore these if you don't use LEDs
 uint8_t bluePins[]        =   { 
@@ -43,9 +50,9 @@ uint8_t bluePins[]        =   {
 uint8_t whitePins[]       = { 
   10, 11};  // pwm pins for whites
 
-uint16_t blueChannels      =         2;  // how many PWMs for blues (count from above)
+uint16_t blueChannels      =         2; // how many PWMs for blues (count from above)
 
-uint16_t whiteChannels     =         2;  // how many PWMs for whites (count from above)
+uint16_t whiteChannels     =         2; // how many PWMs for whites (count from above)
 
 uint16_t blueStartMins    =       690;  // minute to start blues. Change this to the number of minutes past
 // midnight you want the blues to start.
@@ -81,7 +88,7 @@ uint16_t channelDelay     =         0;  // this sets the delay in minutes betwee
 const char Title[]   = { 
   "Hydra-THZ" };
 const char Version[] = {  
-  "0.03" };
+  "0.04" };
 
 uint8_t lcd_in_use_flag = 0;
 uint8_t psecond = 0;
@@ -90,9 +97,10 @@ uint16_t tempMinHolder = 0; // this is used for holding the temp value in menu s
 char strTime[20];
 char tmp[20];
 float PH = 0;
+float TEMP = 0;
 uint8_t second = 00;
-uint8_t minute = 00;
-uint8_t hour = 23;
+uint8_t minute = 30;
+uint8_t hour = 18;
 uint8_t dayOfWeek = 4;
 uint8_t dayOfMonth = 3;
 uint8_t month = 3;
@@ -234,6 +242,12 @@ menu_mapping[MENU_OPTIONS] = {
 MCP23XX lcd_mcp = MCP23XX(LCD_MCP_DEV_ADDR);
 MCP23XX relay_mcp = MCP23XX(RELAY_MCP_DEV_ADDR);
 
+// Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
+OneWire oneWire(ONE_WIRE_BUS);
+
+// Pass our oneWire reference to Dallas Temperature. 
+DallasTemperature sensors(&oneWire);
+DeviceAddress tempSensor;
 LCDI2C4Bit lcd = LCDI2C4Bit(LCD_MCP_DEV_ADDR, LCD_PHYS_LINES, LCD_PHYS_ROWS, PWM_BACKLIGHT_PIN);
 
 #ifdef IR_INPUT
@@ -246,60 +260,77 @@ void setup() {
 #ifdef DEBUG
   Serial.begin(9600);
 #endif
-
+  digitalWrite(PWM_BACKLIGHT_PIN, HIGH); //turn on the LCD backlight
   init_components();
   signon_msg();
+
   // check if clock is running
   if (!RTC.isRunning()){
-#ifdef DEBUG
+#ifdef DEBUG_CLOCK
     Serial.print("Clock is NOT running");
 #endif    
-    //  set the date
+    //  set some  date
     RTC.setDate(second, minute, hour, dayOfWeek, dayOfMonth, month, year);
-
-    //    menu_position = 0;
-    //    global_mode = 2; 
+#ifdef IR_INPUT
+    //  Enter IR learning mode
+    menu_position = 2;
+    global_mode = 2; 
+#endif
 
   }
   else{
-#ifdef DEBUG
+#ifdef DEBUG_CLOCK
     Serial.println("Clock is running");
 #endif 
   }
+  
+  uint8_t dc[8] = {     0b00011000,
+		        0b00011000,
+			0b00000111,
+			0b00000100,
+			0b00000100,
+			0b00000100,
+			0b00000111,
+			0b00000000	};
 
-  //fix this later
-  if (scan_front_button() == 1) {
-    //enter_setup_mode();
-  }
+  lcd.setCustomCharacter(1,dc);
+  
+  uint8_t df[8] = {     0b00011000,
+		        0b00011000,
+			0b00000111,
+			0b00000100,
+			0b00000110,
+			0b00000100,
+			0b00000100,
+			0b00000000	};
 
+  lcd.setCustomCharacter(2,df);
+  uint8_t curr[8] = {   0b00000000,
+		        0b00000100,
+			0b00000110,
+			0b00011111,
+			0b00000110,
+			0b00000100,
+			0b00000000,
+			0b00000000	};
+
+  lcd.setCustomCharacter(3,curr);
+
+  sensors.begin();
+  sensors.getAddress(tempSensor,0);
+  printAddress(tempSensor);
+  sensors.setResolution(tempSensor, TEMPERATURE_PRECISION);
+  
 }
 
 void loop() {
 
   if (global_mode == 0) {            // main 'everyday use' mode
     onKeyPress();
-    Serial.println("MODE 0");
-    if (lcd.backlight_admin == 0) {   // administratively set? (enable auto timeout; normal mode)
-      if (lcd.backlight_currently_on == 1) {
-        if ( (millis() - lcd.one_second_counter_ts) >= 1000) {
-          lcd.seconds++;
-          lcd.one_second_counter_ts = millis();  // reset ourself
-        }
-
-        if (lcd.seconds >= lcd.lcd_inactivity_timeout) {
-          lcd.lcd_fade_backlight_off();  // this also sets 'backlight_currently_on to 0'
-        }
-      } // lcd.backlight_currently_on == 1
-    } //lcd.backlight_admin == 0
   }//global_mode == 0
-
   else if (global_mode == 1) {       // Main Menu
-#ifdef DEBUG
-    Serial.println("MODE 1");
-#endif
     menu();
   }
-
   else if (global_mode == 2) {       // Setting a value
 #ifdef DEBUG  
     // menu positions
@@ -324,7 +355,7 @@ void loop() {
     if ( menu_mapping[menu_position].eepromLoc == 0 ){
       if ( menu_mapping[menu_position].pos == 0 ){ //set clock
         if (first){
-#ifdef DEBUG          
+#ifdef DEBUG_CLOCK
           Serial.println("Entering clock setup");         
 #endif
           lcd.send_string("Use arrows to adjust", LCD_CURS_POS_L2_HOME);
@@ -337,7 +368,7 @@ void loop() {
       }
       else if ( menu_mapping[menu_position].pos == 1 ) {
         if (first){
-#ifdef DEBUG          
+#ifdef DEBUG_IR
           Serial.println("Entering IR Diagnlose");         
 #endif
           first = false;
@@ -346,7 +377,7 @@ void loop() {
       }
       else if ( menu_mapping[menu_position].pos == 2 ) {
         if (first){
-#ifdef DEBUG          
+#ifdef DEBUG_IR       
           Serial.println("Entering IR Learning");         
 #endif
           first = false;
@@ -359,14 +390,15 @@ void loop() {
 #ifdef DEBUG          
         Serial.println("Entering setCurrentMenuOption");         
 #endif
+          
         if (menu_mapping[menu_position].size == 2){
-          lcd.send_string("Value is in minutes", LCD_CURS_POS_L3_HOME);
           EEPROM_readAnything(menu_mapping[menu_position].eepromLoc, tempMinHolder);
+          lcd.send_string("Value is in minutes", LCD_CURS_POS_L3_HOME);
         }else if (menu_mapping[menu_position].size == 1){
+          uint8_t tmp;
+          EEPROM_readAnything(menu_mapping[menu_position].eepromLoc, tmp);
+          tempMinHolder = tmp;
           lcd.send_string("255 - MAX; 0 - MIN  ", LCD_CURS_POS_L3_HOME);
-          uint8_t temp;
-          EEPROM_readAnything(menu_mapping[menu_position].eepromLoc, temp);
-          tempMinHolder = temp;
         }
         lcd.cursorTo(3,0);
         printMenuValue();
@@ -411,11 +443,13 @@ void loop() {
 }
 
 void run_sec( void ){ // runs every second
+  sensors.requestTemperatures();
   minCounter = hour * 60 + minute;
   if (global_mode == 0){
     sprintf(strTime,"%02d:%02d:%02d %02d/%02d/%02d",hour, minute, second, dayOfMonth, month, year);
 
     update_ph(2,0);
+    update_temp(2,14);
     update_clock(3,3);
   }
 
@@ -434,11 +468,22 @@ void update_clock(uint8_t x, uint8_t y){
 
 void update_ph(uint8_t x, uint8_t y){
   lcd.cursorTo(x,y);
-  lcd.print("Ph: ");
+  lcd.print("pH:");
   getPH();
   lcd.print(PH);
   lcd.print(" ");
 
+
+}
+
+void update_temp(uint8_t x, uint8_t y){
+  lcd.cursorTo(x,y);
+  getTemp();
+  if (TEMP < 0){
+  }else{
+    lcd.print(TEMP);
+    lcd.write(1);
+  }
 }
 
 void getPH( void ){
@@ -451,6 +496,13 @@ void getPH( void ){
   PH = sum/15/46;
 }
 
+void getTemp(){
+  TEMP = sensors.getTempC(tempSensor);
+#ifdef DEBUG
+  Serial.print("Temp C: ");
+  Serial.println(TEMP);
+#endif
+}
 #ifdef LEDS
 void update_leds( void ){
   uint8_t i;
@@ -460,18 +512,18 @@ void update_leds( void ){
   for (i = 0; i < blueChannels; i++){
     ledVal = setLed(minCounter, bluePins[i], blueStartMins + channelDelay*i, bluePhotoPeriod, fadeDuration, blueMax);
     percent = (int)(ledVal/2.55);
-    sprintf(ledValBuf,"PWM%02d:%02d ",bluePins[i], percent);
+    sprintf(ledValBuf,"B%d:%02d ",i+1, percent);
     if (global_mode == 0){
-      lcd.cursorTo(0, i*10);
+      lcd.cursorTo(0, i*7);
       lcd.print(ledValBuf);
     }
   }
   for (i = 0; i < whiteChannels; i++){
     ledVal = setLed(minCounter, whitePins[i], whiteStartMins + channelDelay*i, whitePhotoPeriod, fadeDuration, whiteMax);
     percent = (int)(ledVal/2.55);
-    sprintf(ledValBuf,"PWM%02d:%02d ",whitePins[i], percent);
+    sprintf(ledValBuf,"W%d:%02d ",i+1, percent);
     if (global_mode == 0){
-      lcd.cursorTo(1, i*10);
+      lcd.cursorTo(1, i*7);
       lcd.print(ledValBuf);
     }
   }
@@ -527,7 +579,7 @@ uint8_t ledMax   // max value for this channel
 void send_to_slave( void ){
   FUnion._fval = PH;
   Wire.beginTransmission(4); // transmit to device #4
-  Wire.send(FUnion._b,4);              // sends one byte  
+  Wire.send(FUnion._b,4);    // sends one byte  
   Wire.endTransmission();    // stop transmitting
 }
 
@@ -544,14 +596,24 @@ void  signon_msg( void ) {
   lcd.clear();
 }
 
+// function to print a device address
+void printAddress(DeviceAddress deviceAddress)
+{
+  for (uint8_t i = 0; i < 8; i++)
+  {
+    // zero pad the address if necessary
+    if (deviceAddress[i] < 16) Serial.print("0");
+    Serial.print(deviceAddress[i], HEX);
+  }
+}
+
 
 void init_components ( void ) {
   uint16_t i;
   Wire.begin();
   //start LCD
   lcd.init();
-  lcd.SetInputKeysMask(LCD_MCP_INPUT_PINS_MASK);
-
+  
 #ifdef IR_INPUT
   //start IR sensor
   irrecv.enableIRIn();
@@ -567,7 +629,7 @@ void init_components ( void ) {
 
 #ifdef LEDS
   //check if eeprom is good and if not set defaults
-  if (EEPROM.read(EEPROM_MAGIC) != 04) {
+  if (EEPROM.read(EEPROM_MAGIC) != 01) {
     // init all of EEPROM area
 
     EEPROM_writeAnything(EEPROM_WHITE_LVL,         0);
@@ -582,7 +644,7 @@ void init_components ( void ) {
     EEPROM_writeAnything(EEPROM_BLUE_START,        blueStartMins);
     EEPROM_writeAnything(EEPROM_CHANNEL_DELAY,     channelDelay);
     EEPROM_writeAnything(EEPROM_FADE_DURATION,     fadeDuration);
-    EEPROM_writeAnything(EEPROM_MAGIC, 04);  // this signals that we're whole again ;)
+    EEPROM_writeAnything(EEPROM_MAGIC, 01);  // this signals that we're whole again ;)
   }
   readFromEEPROM();
 
@@ -605,15 +667,6 @@ void readFromEEPROM ( void ){
   EEPROM_readAnything(EEPROM_FADE_DURATION, fadeDuration);
 #endif
 
-}
-uint8_t scan_front_button( void ) {
-  in_keys = lcd.ReadInputKeys();
-  if ( (in_keys & LCD_MCP_INPUT_PINS_MASK ) != LCD_MCP_INPUT_PINS_MASK) {
-    return 1;
-  } 
-  else {
-    return 0;
-  }
 }
 
 void enter_setup_mode( void )  {
@@ -769,7 +822,6 @@ long  get_IR_key( void ) {
       }
 
     }
-
 
     /*
      * this is used when in 'debug IR' mode
@@ -941,7 +993,6 @@ void onKeyPress( void )
   if (key == 0) {
     return;   // try again to sync up on an IR start-pulse
   }
-  lcd.restore_backlight();
   // key = IR diagnose
   if (key == ir_keypress_mapping[IFC_DIAG_IR_RX].key_hex) {
     //do something
@@ -1029,7 +1080,7 @@ void menu( void ) {
     global_mode = 2;
     delay (100);
   }
-  else if (key == ir_keypress_mapping[IFC_UP].key_hex){
+  else if (key == ir_keypress_mapping[IFC_DOWN].key_hex){
     if (menu_position < MENU_OPTIONS-1){
       menu_position++;
     }
@@ -1039,7 +1090,7 @@ void menu( void ) {
     update_menu();
     delay (100);
   }
-  else if (key == ir_keypress_mapping[IFC_DOWN].key_hex){ 
+  else if (key == ir_keypress_mapping[IFC_UP].key_hex){ 
     if (menu_position > 0){
       menu_position--;
     }
@@ -1051,6 +1102,7 @@ void menu( void ) {
   }
   else if (key == ir_keypress_mapping[IFC_CANCEL].key_hex){
     global_mode = 0;
+    first = true;
     lcd.clear();
     delay (100);
   } 
@@ -1063,8 +1115,27 @@ void menu( void ) {
 
 
 void update_menu( void ){
+  byte next = menu_position+1;
+  byte nextnext = menu_position+2;
+  byte prev = menu_position-1;
   lcd.clear();
-  lcd.send_string(menu_mapping[menu_position].description, LCD_CURS_POS_L2_HOME);
+  if (menu_position < 1){
+    prev = MENU_OPTIONS-1;
+  }
+  if (menu_position == MENU_OPTIONS-1){
+    next = 0;
+    nextnext = 1;
+  }else if (menu_position == MENU_OPTIONS-2){
+    nextnext = 0;
+  }
+  
+  lcd.send_string(menu_mapping[prev].description, LCD_CURS_POS_L1_HOME);
+  lcd.cursorTo(1,0);
+  lcd.print(" ");
+  lcd.write(3);
+  lcd.print(menu_mapping[menu_position].description);
+  lcd.send_string(menu_mapping[next].description, LCD_CURS_POS_L3_HOME);
+  lcd.send_string(menu_mapping[nextnext].description, LCD_CURS_POS_L4_HOME);
 }
 
 
@@ -1238,6 +1309,7 @@ void set_time( void ){
     lcd.clear();
     global_mode = 0;
     delay (100);
+    first = true;
   } 
   delay(100);
   irrecv.resume(); // we just consumed one key; 'start' to receive the next value
@@ -1321,6 +1393,7 @@ void setCurrentMenuOption ( uint8_t size ) {
     lcd.clear();
     global_mode = 0;
     delay (100);
+    first = true;
   } 
 
   delay(100);
@@ -1329,13 +1402,25 @@ void setCurrentMenuOption ( uint8_t size ) {
 
 
 void printMenuValue(){
+#ifdef DEBUG
+      Serial.print("menu_position: ");
+      Serial.println(menu_position);
+#endif
   if (menu_mapping[menu_position].size == 2){
       uint8_t hr = tempMinHolder/60;
       uint8_t mn = tempMinHolder - (hr*60);
-      sprintf(tmp,"%02u   (%02uh %02um)   ",tempMinHolder, hr, mn);
+      sprintf(tmp,"%02u   (%02u:%02u)   ",tempMinHolder, hr, mn);
+#ifdef DEBUG
+      Serial.print("tmp: ");
+      Serial.println(tmp);
+#endif
     }else if (menu_mapping[menu_position].size == 1){
       uint8_t pct = (tempMinHolder/2.55);
-      sprintf(tmp,"%02u   (%02u%%)        ",tempMinHolder, pct);
+      sprintf(tmp,"%02u   (%02u%%)      ",tempMinHolder, pct);
+#ifdef DEBUG
+      Serial.print("tmp: ");
+      Serial.println(tmp);
+#endif
     }
   lcd.print(tmp);
 }
